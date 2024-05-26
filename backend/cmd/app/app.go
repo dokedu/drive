@@ -50,6 +50,7 @@ func main() {
 	router.HandleFunc("DELETE /files/{id}", handler.HandleFileDelete)
 	router.HandleFunc("PATCH /files/{id}", handler.HandleFilePatch)
 	router.HandleFunc("GET /files/{id}/download", handler.HandleFileDownload)
+	router.HandleFunc("GET /files/{id}/preview", handler.HandleFilePreview)
 	router.HandleFunc("GET /files", handler.HandleFiles)
 	router.HandleFunc("POST /files", handler.HandleFileUpload)
 	router.HandleFunc("GET /folders/{id}", handler.HandleFolders)

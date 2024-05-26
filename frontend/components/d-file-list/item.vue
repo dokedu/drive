@@ -1,3 +1,13 @@
+<script lang="ts">
+export interface File {
+  id: string;
+  name: string;
+  file_size: number;
+  mime_type: string;
+  createdAt: string;
+}
+</script>
+
 <script lang="ts" setup>
 import { FileText, FileType, Folder, FileImage, File } from "lucide-vue-next";
 import { NuxtLink } from "#components";
@@ -19,14 +29,6 @@ import {
   ContextMenuTrigger,
 } from "radix-vue";
 const fileStore = useFileStore();
-
-interface File {
-  id: string;
-  name: string;
-  file_size: number;
-  mime_type: string;
-  created_at: string;
-}
 
 interface Props {
   file: File;
@@ -114,7 +116,7 @@ async function rename() {
   await fileStore.updateFileName(file);
 }
 
-const editingName = ref(true)
+const editingName = ref(true);
 </script>
 
 <template>
@@ -122,13 +124,19 @@ const editingName = ref(true)
     <template #content>
       <div
         class="grid items-center py-2.5 cursor-default text-sm px-4 text-gray-700 gap-8"
-        :class="selected ? 'bg-blue-100 hover:bg-blue-100' : 'hover:bg-gray-100'"
+        :class="
+          selected ? 'bg-blue-100 hover:bg-blue-100' : 'hover:bg-gray-100'
+        "
         :style="{ gridTemplateColumns: '6fr 1fr 3fr' }"
         @click="onClick"
         :data-id="file.id"
       >
         <div class="flex items-center gap-2 w-full">
-          <component :is="fileIcon(file)" :size="18" :class="file.mime_type === 'directory' ? 'fill-current' : ''" />
+          <component
+            :is="fileIcon(file)"
+            :size="18"
+            :class="file.mime_type === 'directory' ? 'fill-current' : ''"
+          />
           <div v-if="editingName" class="w-full">
             <input
               type="text"

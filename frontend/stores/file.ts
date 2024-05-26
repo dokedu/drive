@@ -10,7 +10,11 @@ export const useFileStore = defineStore("file", () => {
   const deleted = ref(false);
 
   const options = computed(() => {
-    return { sharedDrive: sharedDrive.value, parentId: parentId.value, deleted: deleted.value };
+    return {
+      sharedDrive: sharedDrive.value,
+      parentId: parentId.value,
+      deleted: deleted.value,
+    };
   });
 
   watch(options, async () => {
@@ -64,7 +68,6 @@ export const useFileStore = defineStore("file", () => {
   }
 
   async function updateFileName(file: File) {
-
     await $fetch(`http://localhost:1323/files/${file.id}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -100,7 +103,9 @@ export const useFileStore = defineStore("file", () => {
 
   function fileToggleSelected(id: string) {
     if (fileSelected(id)) {
-      selectedFiles.value = selectedFiles.value.filter((fileId) => fileId !== id);
+      selectedFiles.value = selectedFiles.value.filter(
+        (fileId) => fileId !== id,
+      );
     } else {
       selectedFiles.value = [id];
     }
@@ -111,9 +116,12 @@ export const useFileStore = defineStore("file", () => {
   }
 
   async function downloadFile(file: File) {
-    const response = await fetch(`http://localhost:1323/files/${file.id}/download`, {
-      method: "GET",
-    });
+    const response = await fetch(
+      `http://localhost:1323/files/${file.id}/download`,
+      {
+        method: "GET",
+      },
+    );
 
     const blob = await response.blob();
 
@@ -124,6 +132,41 @@ export const useFileStore = defineStore("file", () => {
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
+  }
+
+  async function getPreviewUrl(id: string) {
+    const response = await fetch(`http://localhost:1323/files/${id}/preview`, {
+      method: "GET",
+    });
+    const json = await response.json();
+
+    return json.url;
+  }
+
+  function selectNextFile() {
+    const index = files.value.findIndex(
+      (file) => file.id === selectedFiles.value[0],
+    );
+    if (index === -1) {
+      return;
+    }
+
+    if (index + 1 < files.value.length) {
+      selectedFiles.value = [files.value[index + 1].id];
+    }
+  }
+
+  function selectPreviousFile() {
+    const index = files.value.findIndex(
+      (file) => file.id === selectedFiles.value[0],
+    );
+    if (index === -1) {
+      return;
+    }
+
+    if (index - 1 >= 0) {
+      selectedFiles.value = [files.value[index - 1].id];
+    }
   }
 
   return {
@@ -141,5 +184,8 @@ export const useFileStore = defineStore("file", () => {
     clearSelectedFiles,
     downloadFile,
     updateFileName,
+    getPreviewUrl,
+    selectNextFile,
+    selectPreviousFile,
   };
 });

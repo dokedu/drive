@@ -9,4 +9,9 @@ export default defineNuxtConfig({
     },
   },
   modules: ["@vueuse/nuxt", "@pinia/nuxt", "radix-vue/nuxt"],
+  vite: {
+    optimizeDeps: {
+      exclude: ["pdfjs-dist/build/pdf"],
+    },
+  },
 });

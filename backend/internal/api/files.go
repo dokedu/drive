@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/minio/minio-go/v7"
@@ -125,6 +126,7 @@ type FileUploadResponse struct {
 	Data db.File `json:"data"`
 }
 
+// TODO: handle the case where file doesn't get uploaded but is already in db
 func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -287,6 +289,45 @@ func (s *Config) HandleFilePatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := json.Marshal(file)
+	if err != nil {
+		slog.Error(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+func (s *Config) HandleFilePreview(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := r.PathValue("id")
+
+	// Get file from db
+	file, err := s.DB.FileFindByID(ctx, db.FileFindByIDParams{
+		ID:             id,
+		OrganisationID: "1",
+	})
+	if err != nil {
+		slog.Error(err.Error())
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Get preview url from minio
+	presignedURL, err := s.MinIO.PresignedGetObject(ctx, "drive", file.ID, time.Second*60, nil)
+	if err != nil {
+		slog.Error(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res := struct {
+		URL string `json:"url"`
+	}{}
+	res.URL = presignedURL.String()
+	body, err := json.Marshal(res)
 	if err != nil {
 		slog.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
