@@ -11,6 +11,26 @@
         <div class="flex flex-col gap-3">
           <d-input
             size="md"
+            label="First Name"
+            v-model="firstName"
+            type="text"
+            name="firstname"
+            id="firstname"
+            required
+            placeholder="Your first name"
+          />
+          <d-input
+            size="md"
+            label="Last Name"
+            v-model="lastName"
+            type="text"
+            name="lastname"
+            id="lastname"
+            required
+            placeholder="Your last name"
+          />
+          <d-input
+            size="md"
             label="Email"
             v-model="email"
             type="email"
@@ -22,15 +42,13 @@
           />
           <d-input
             size="md"
-            label="Password"
-            v-model="password"
-            type="password"
-            name="password"
-            id="password"
+            label="Organisation name"
+            v-model="organisation"
+            type="text"
+            name="organisation"
+            id="organisation"
             required
-            :min="8"
-            autocomplete="current-password"
-            placeholder="Your password"
+            placeholder="Your organisation name"
           />
         </div>
         <d-button submit type="primary"> Log in </d-button>
@@ -38,7 +56,7 @@
           class="mx-auto block w-fit rounded-md text-center text-xs font-medium leading-none text-muted hover:text-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-950"
           to="/forgot-password"
         >
-          Forgot password
+          Already have an account? Log in
         </router-link>
       </form>
     </template>
@@ -55,8 +73,11 @@ definePageMeta({
   layout: "auth",
 });
 
+const firstName = ref("");
+const lastName = ref("");
 const email = ref("");
-const password = ref("");
+const organisation = ref("");
+
 const error = ref<Error | null>(null);
 
 async function onSubmit() {
