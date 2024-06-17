@@ -10,24 +10,8 @@ export interface File {
 
 <script lang="ts" setup>
 import { FileText, FileType, Folder, FileImage, File } from "lucide-vue-next";
-import { NuxtLink } from "#components";
 import { useFileStore } from "@/stores/file";
-import {
-  ContextMenuCheckboxItem,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuItemIndicator,
-  ContextMenuLabel,
-  ContextMenuPortal,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
-  ContextMenuRoot,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-} from "radix-vue";
+import { ContextMenuItem, ContextMenuSeparator } from "radix-vue";
 const fileStore = useFileStore();
 
 interface Props {
@@ -35,17 +19,6 @@ interface Props {
 }
 
 const { file } = defineProps<Props>();
-
-function formatTime(time: Date) {
-  return Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-  }).format(time);
-}
 
 function fileIcon(file: File) {
   switch (file.mime_type) {
@@ -82,6 +55,7 @@ function prettyBytes(bytes: number) {
 const selected = computed(() => fileStore.fileSelected(file.id));
 
 async function onClick() {
+  console.log("click");
   if (!fileStore.fileSelected(file.id)) {
     fileStore.fileToggleSelected(file.id);
     return;
@@ -116,7 +90,15 @@ async function rename() {
   await fileStore.updateFileName(file);
 }
 
-const editingName = ref(true);
+const editingName = ref(false);
+
+const renameinput = ref<HTMLInputElement | null>(null);
+
+function startRename() {
+  console.log("start rename");
+  editingName.value = true;
+  renameinput.value?.focus();
+}
 </script>
 
 <template>
@@ -140,6 +122,7 @@ const editingName = ref(true);
           <div v-if="editingName" class="w-full">
             <input
               type="text"
+              ref="renameinput"
               v-model="file.name"
               class="w-full bg-transparent focus:outline-none"
               @keydown.enter="rename"

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Download, X } from "lucide-vue-next";
+import { Download, Folder, X, FileIcon } from "lucide-vue-next";
 import { type File } from "@/components/d-file-list/item.vue";
 import { useFileStore } from "#imports";
 
@@ -36,6 +36,8 @@ const fileType = computed(() => {
       return "audio";
     case "application/pdf":
       return "pdf";
+    case "directory":
+      return "directory";
     default:
       return "unknown";
   }
@@ -131,27 +133,31 @@ async function renderPDF(url: string) {
   <DialogRoot :open="open">
     <DialogPortal>
       <DialogOverlay
-        class="bg-gray-800/60 data-[state=open]:animate-overlayShow fixed inset-0 z-30"
+        class="bg-gray-800/20 data-[state=open]:animate-overlayShow fixed inset-0 z-30"
       />
       <DialogContent
-        class="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] focus:outline-none z-[100]"
+        class="data-[state=open]:animate-contentShow fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] focus:outline-none z-[100] bg-gray-100 rounded-xl shadow-xl"
         @keydown.esc="onClose"
       >
-        <div class="flex justify-between gap-4 py-4 text-white">
-          <div>{{ fileRef.name }}</div>
-          <div class="flex gap-4">
-            <Download
-              class="cursor-pointer"
+        <div
+          class="flex justify-between items-center gap-4 py-2 px-2 text-gray-700"
+        >
+          <DialogTitle class="ml-2 text-gray-600 text-sm font-semibold">
+            {{ fileRef.name }}
+          </DialogTitle>
+          <div class="flex gap-1">
+            <DIconButton
+              :icon="Download"
               @click="store.downloadFile(fileRef)"
-            />
-            <DialogClose @click="onClose">
-              <X />
+            ></DIconButton>
+            <DialogClose @click="onClose" class="outline-none">
+              <DIconButton :icon="X"></DIconButton>
             </DialogClose>
           </div>
         </div>
 
         <div
-          class="max-h-[85vh] max-w-4xl flex justify-center bg-black rounded-xl shadow-lg overflow-hidden"
+          class="max-h-[85vh] max-w-4xl flex justify-center mx-1 mb-1 bg-gray-50 rounded-lg overflow-hidden shadow-sm"
           :key="previewUrl"
         >
           <img
@@ -184,10 +190,26 @@ async function renderPDF(url: string) {
             class="mx-auto block h-fit max-h-full w-fit object-contain"
           ></canvas>
           <div
-            v-else-if="fileType === 'unknown'"
-            class="mx-auto text-center text-white p-6"
+            v-else-if="fileType === 'directory' || fileType === 'unknown'"
+            class="flex items-center gap-4 p-10"
           >
-            Preview is not available for this file type
+            <div
+              class="size-14 bg-white shadow-md grid place-items-center rounded-2xl"
+            >
+              <Folder
+                v-if="fileType === 'directory'"
+                class="size-7 fill-blue-600 stroke-blue-600"
+              />
+              <FileIcon v-else class="size-7 stroke-blue-600" />
+            </div>
+            <div>
+              <div class="text-gray-800 text-2xl">
+                {{ fileRef.name }}
+              </div>
+              <div class="text-gray-500 text-sm">
+                {{ formatTime(new Date(fileRef.created_at)) }}
+              </div>
+            </div>
           </div>
         </div>
       </DialogContent>

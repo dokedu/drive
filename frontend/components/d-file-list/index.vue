@@ -44,7 +44,7 @@ onKeyDown(" ", onSpace);
 <template>
   <d-file-preview
     :open="previewOpen"
-    v-if="previewOpen"
+    v-if="previewOpen && selectedFile"
     @close="previewOpen = false"
     :file="selectedFile"
   ></d-file-preview>
