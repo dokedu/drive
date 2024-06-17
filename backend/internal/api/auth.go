@@ -54,6 +54,7 @@ func (s *Config) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	otp := fmt.Sprintf("%06d", seed.Int64()%(int64(maxOtp)-int64(minOtp)+1)+int64(minOtp))
+	fmt.Println(otp)
 
 	// Create org if it doesn't exist
 	org, err := s.DB.OrganisationFindByName(ctx, organisation)
@@ -81,6 +82,8 @@ func (s *Config) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	fmt.Println(user)
 
 	// Send email with token
 
