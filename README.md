@@ -1,9 +1,13 @@
 # Dokedu Drive
 
-## TODOS
+### To Do's
 
 - Sign In
+  - Passwordless Sign In? (email link)
 - Sign Out
+
+- Sign Up
+  - With first name, last name, email
 
 - Files
   - Add "New folder" button
@@ -15,13 +19,26 @@
 - Trash
   - Restore file
 
-Technical
+- Settings
+  - Account
+    - Upload profile picture
+    - Change first and last name
+  - Admin (only for admins or owners)
+    - Users
+      - Invite user (via email)
+      - Archive user
+    - Billing
+      - Write support@dokedu.org for more details
 
-*Frontend*
+
+#### Technical
+
+**Frontend**
 - i18n (translations)
 - favicon
 - context menu (make right click work for full area, not only file list coz if no files, no context menu)
 
-*Backend*
+**Backend**
 - seeds.sql
 - Bucket name should be a env variable
+- Ensure image previews are cached by providing a cache-control header in the response
