@@ -1,21 +1,27 @@
 # Dokedu Drive
 
-## Backend
+## TODOS
 
-- https://github.com/sqlc-dev/sqlc
-- https://github.com/99designs/gqlgen
-- https://github.com/seaweedfs/seaweedfs
+- Sign In
+- Sign Out
 
-TODO:
+- Files
+  - Add "New folder" button
+  - Improve renaming UX
+- Shared drives
+  - Create
+  - Edit sharing
+  - Archive
+- Trash
+  - Restore file
 
-- fast file search
-- file preview generation (backend generates images of the files?)
-- image resizing for image preview (review https://github.com/imgproxy/imgproxy)
-- deployment, easy scale up and down instances of seaweed and backend
+Technical
 
-## Frontend
+*Frontend*
+- i18n (translations)
+- favicon
+- context menu (make right click work for full area, not only file list coz if no files, no context menu)
 
-- Nuxt 3
-- urql
-- Traui for desktop/mobile
-  - Rust sync engine for desktop to stream files
+*Backend*
+- seeds.sql
+- Bucket name should be a env variable
