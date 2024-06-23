@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { nanoid } from "nanoid";
-
+// TODO: is this file still used? If not, remove it.
 const files = ref([
   {
     id: 1,

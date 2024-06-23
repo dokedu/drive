@@ -13,11 +13,20 @@ await useAsyncData(`file-${route.params.id}`, async () => {
 
   return true;
 });
+
+function newFolder() {
+  fileStore.createFolder();
+}
 </script>
 
 <template>
   <div class="w-full">
-    <d-header>My files</d-header>
+    <d-header class="justify-between">
+      <div>My files</div>
+      <div>
+        <DButton @click="newFolder()">New Folder</DButton>
+      </div>
+    </d-header>
     <d-file-list :files="fileStore.files" />
   </div>
 </template>
