@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 
 export const useFileStore = defineStore("file", () => {
   const selectedFiles = ref<string[]>([]);
+  const authStore = useAuthStore();
 
   const files = ref([]);
 
@@ -28,12 +29,15 @@ export const useFileStore = defineStore("file", () => {
   }
 
   async function fetchFiles() {
-    const response = await $fetch<any>("http://localhost:1323/files", {
+    const response = await $fetch<any>("http://localhost:1323/files/", {
       method: "GET",
       query: {
         parent_id: parentId.value,
         shared_drive: sharedDrive.value,
         deleted: deleted.value,
+      },
+      headers: {
+        Authorization: `${authStore.userToken}`,
       },
     });
 
@@ -48,9 +52,12 @@ export const useFileStore = defineStore("file", () => {
     formData.append("name", "Untitled Folder");
     formData.append("is_folder", "true");
 
-    const response = await $fetch<any>("http://localhost:1323/files", {
+    const response = await $fetch<any>("http://localhost:1323/files/", {
       method: "POST",
       body: formData,
+      headers: {
+        Authorization: `${authStore.userToken}`,
+      },
     });
 
     await fetchFiles();
@@ -62,6 +69,9 @@ export const useFileStore = defineStore("file", () => {
 
     await $fetch(`http://localhost:1323/files/${id}`, {
       method: "DELETE",
+      headers: {
+        Authorization: `${authStore.userToken}`,
+      },
     });
 
     await fetchFiles();
@@ -74,6 +84,9 @@ export const useFileStore = defineStore("file", () => {
         id: file.id,
         name: file.name,
       }),
+      headers: {
+        Authorization: `${authStore.userToken}`,
+      },
     });
 
     await fetchFiles();
@@ -88,9 +101,12 @@ export const useFileStore = defineStore("file", () => {
         form.append("parent_id", parentId.value);
       }
 
-      await $fetch("http://localhost:1323/files", {
+      await $fetch("http://localhost:1323/files/", {
         method: "POST",
         body: form,
+        headers: {
+          Authorization: `${authStore.userToken}`,
+        },
       });
 
       await fetchFiles();
@@ -120,6 +136,9 @@ export const useFileStore = defineStore("file", () => {
       `http://localhost:1323/files/${file.id}/download`,
       {
         method: "GET",
+        headers: {
+          Authorization: `${authStore.userToken}`,
+        },
       },
     );
 
@@ -137,6 +156,9 @@ export const useFileStore = defineStore("file", () => {
   async function getPreviewUrl(id: string) {
     const response = await fetch(`http://localhost:1323/files/${id}/preview`, {
       method: "GET",
+      headers: {
+        Authorization: `${authStore.userToken}`,
+      },
     });
     const json = await response.json();
 

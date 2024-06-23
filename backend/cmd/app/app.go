@@ -4,8 +4,10 @@ import (
 	"example/internal/api"
 	"example/internal/database"
 	"example/internal/middleware"
+	"example/internal/services/mail"
 	"example/internal/services/minio"
 	"fmt"
+	"github.com/gorilla/mux"
 	"log/slog"
 	"net/http"
 	"os"
@@ -27,38 +29,38 @@ func main() {
 		SSL:       os.Getenv("MINIO_SSL") == "true",
 	})
 
+	// Mailer
+	mailer := mail.NewClient()
+
 	// Init router
-	router := http.NewServeMux()
+	router := mux.NewRouter()
 	handler := api.NewServer(api.Config{
-		DB:    conn,
-		MinIO: minioClient,
+		DB:     conn,
+		MinIO:  minioClient,
+		Mailer: &mailer,
 	})
 
-	router.HandleFunc("/", handler.HandleRootRoute)
-
-	//Authentication
-	router.HandleFunc("POST /sign_in", handler.HandleSignIn)
-
-	// User routes
-	//router.HandleFunc("GET /me", handler.HandleMe)
-
-	stack := middleware.CreateStack(
-		middleware.CORS,
-	)
+	// Public routes
+	router.HandleFunc("/", handler.HandleRootRoute).Methods("GET")
+	router.HandleFunc("/one-time-login", handler.HandleOneTimeLogin).Methods("POST")
+	router.HandleFunc("/login", handler.HandleLogin).Methods("POST")
 
 	// File routes
-	router.HandleFunc("DELETE /files/{id}", handler.HandleFileDelete)
-	router.HandleFunc("PATCH /files/{id}", handler.HandleFilePatch)
-	router.HandleFunc("GET /files/{id}/download", handler.HandleFileDownload)
-	router.HandleFunc("GET /files/{id}/preview", handler.HandleFilePreview)
-	router.HandleFunc("GET /files", handler.HandleFiles)
-	router.HandleFunc("POST /files", handler.HandleFileUpload)
-	router.HandleFunc("GET /folders/{id}", handler.HandleFolders)
-	router.HandleFunc("GET /shared-drives", handler.HandleSharedDrives)
+	fileRouter := router.PathPrefix("/files/").Subrouter()
+	fileRouter.HandleFunc("/{id}", handler.HandleFileDelete).Methods("DELETE")
+	fileRouter.HandleFunc("/{id}", handler.HandleFilePatch).Methods("PATCH")
+	fileRouter.HandleFunc("/{id}/download", handler.HandleFileDownload).Methods("GET")
+	fileRouter.HandleFunc("/{id}/preview", handler.HandleFilePreview).Methods("GET")
+	fileRouter.HandleFunc("/", handler.HandleFiles).Methods("GET")
+	fileRouter.HandleFunc("/", handler.HandleFileUpload).Methods("POST")
+	fileRouter.HandleFunc("/folders/{id}", handler.HandleFolders).Methods("GET")
+	fileRouter.HandleFunc("/shared-drives", handler.HandleSharedDrives).Methods("GET")
+
+	fileRouter.Use(middleware.AuthMiddleware(conn))
 
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: stack(router),
+		Handler: middleware.CORS(router),
 	}
 
 	slog.Info(fmt.Sprintf("starting server on http://localhost:%d", port))

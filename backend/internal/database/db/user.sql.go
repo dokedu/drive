@@ -29,6 +29,28 @@ func (q *Queries) CreateOrganisation(ctx context.Context, name string) (Organisa
 	return i, err
 }
 
+const createSession = `-- name: CreateSession :one
+INSERT INTO sessions (user_id, token ) VALUES ($1, $2) RETURNING id, user_id, token, created_at, deleted_at
+`
+
+type CreateSessionParams struct {
+	UserID string `db:"user_id" json:"user_id"`
+	Token  string `db:"token" json:"token"`
+}
+
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
+	row := q.db.QueryRow(ctx, createSession, arg.UserID, arg.Token)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, first_name, last_name, organisation_id, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, role, organisation_id, first_name, last_name, email, password, recovery_token, recovery_sent_at, avatar_file_id, created_at, deleted_at
 `
@@ -67,6 +89,26 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const findSessionByToken = `-- name: FindSessionByToken :one
+SELECT id, user_id, token, created_at, deleted_at
+FROM sessions
+WHERE token = $1
+  AND deleted_at IS NULL
+`
+
+func (q *Queries) FindSessionByToken(ctx context.Context, token string) (Session, error) {
+	row := q.db.QueryRow(ctx, findSessionByToken, token)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const organisationFindByName = `-- name: OrganisationFindByName :one
 SELECT id, name, stripe_customer_id, stripe_subscription_id, created_at, deleted_at
 FROM organisations
@@ -88,10 +130,30 @@ func (q *Queries) OrganisationFindByName(ctx context.Context, name string) (Orga
 	return i, err
 }
 
+const removeSession = `-- name: RemoveSession :one
+UPDATE sessions
+SET deleted_at = NOW()
+WHERE token = $1
+  AND deleted_at IS NULL
+RETURNING id, user_id, token, created_at, deleted_at
+`
+
+func (q *Queries) RemoveSession(ctx context.Context, token string) (Session, error) {
+	row := q.db.QueryRow(ctx, removeSession, token)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const resetUserConfirmationToken = `-- name: ResetUserConfirmationToken :one
 UPDATE users
-SET recovery_token = NULL
-AND recovery_sent_at = NULL
+SET recovery_token = NULL, recovery_sent_at = NULL
 WHERE id = $1
   AND deleted_at IS NULL
 RETURNING id, role, organisation_id, first_name, last_name, email, password, recovery_token, recovery_sent_at, avatar_file_id, created_at, deleted_at
@@ -119,8 +181,7 @@ func (q *Queries) ResetUserConfirmationToken(ctx context.Context, id string) (Us
 
 const updateUserConfirmationToken = `-- name: UpdateUserConfirmationToken :one
 UPDATE users
-SET recovery_token = $1
-AND recovery_sent_at = $2
+SET recovery_token = $1, recovery_sent_at = $2
 WHERE id = $3
   AND deleted_at IS NULL
 RETURNING id, role, organisation_id, first_name, last_name, email, password, recovery_token, recovery_sent_at, avatar_file_id, created_at, deleted_at
@@ -194,6 +255,33 @@ WHERE email = $1
 
 func (q *Queries) UserFindByEmail(ctx context.Context, email string) (User, error) {
 	row := q.db.QueryRow(ctx, userFindByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Role,
+		&i.OrganisationID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Password,
+		&i.RecoveryToken,
+		&i.RecoverySentAt,
+		&i.AvatarFileID,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const userFindByToken = `-- name: UserFindByToken :one
+SELECT id, role, organisation_id, first_name, last_name, email, password, recovery_token, recovery_sent_at, avatar_file_id, created_at, deleted_at
+FROM users
+WHERE recovery_token = $1
+  AND deleted_at IS NULL
+`
+
+func (q *Queries) UserFindByToken(ctx context.Context, recoveryToken pgtype.Text) (User, error) {
+	row := q.db.QueryRow(ctx, userFindByToken, recoveryToken)
 	var i User
 	err := row.Scan(
 		&i.ID,

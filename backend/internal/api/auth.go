@@ -1,20 +1,32 @@
 package api
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"example/internal/database/db"
 	"fmt"
-	"math/big"
+	"github.com/jackc/pgx/v5/pgtype"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"net/http"
-
-	"golang.org/x/crypto/bcrypt"
+	"time"
 )
 
-func (s *Config) HandleSignIn(w http.ResponseWriter, r *http.Request) {
+type UserPayload struct {
+	Token string `json:"token"`
+	User  User   `json:"user"`
+}
+
+type User struct {
+	ID             string      `json:"id"`
+	Email          string      `json:"email"`
+	FirstName      string      `json:"first_name"`
+	LastName       string      `json:"last_name"`
+	OrganisationID string      `json:"organisation"`
+	Role           db.UserRole `json:"role"`
+}
+
+func (s *Config) HandleOneTimeLogin(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	email := r.FormValue("email")
-	password := r.FormValue("password")
 
 	user, err := s.DB.UserFindByEmail(ctx, email)
 	if err != nil {
@@ -22,13 +34,79 @@ func (s *Config) HandleSignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password.String), []byte(password))
+	// Generate
+	token := gonanoid.Must(32)
+
+	// Save the token in db
+	_, err = s.DB.UpdateUserConfirmationToken(ctx, db.UpdateUserConfirmationTokenParams{
+		RecoveryToken:  pgtype.Text{String: token, Valid: true},
+		RecoverySentAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		ID:             user.ID,
+	})
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	body, err := json.Marshal(user)
+	// Send email with token
+	err = s.Mailer.SendToken(user.Email, user.FirstName, token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	body := []byte(`{"message": "Token sent"}`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+func (s *Config) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	token := r.FormValue("token")
+
+	user, err := s.DB.UserFindByToken(ctx, pgtype.Text{String: token, Valid: true})
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if token isn't older than 5 minutes
+	if time.Since(user.RecoverySentAt.Time) > 5*time.Minute {
+		http.Error(w, "Token expired", http.StatusBadRequest)
+
+		// Delete token
+		_, _ = s.DB.ResetUserConfirmationToken(ctx, user.ID)
+		return
+	}
+
+	// Invalidate token
+	_, _ = s.DB.ResetUserConfirmationToken(ctx, user.ID)
+
+	// Create session
+	session, err := s.DB.CreateSession(ctx, db.CreateSessionParams{
+		UserID: user.ID,
+		Token:  gonanoid.Must(32),
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	userPayload := UserPayload{
+		Token: session.Token,
+		User: User{
+			ID:             user.ID,
+			Email:          user.Email,
+			FirstName:      user.FirstName,
+			LastName:       user.LastName,
+			OrganisationID: user.OrganisationID,
+			Role:           user.Role,
+		},
+	}
+
+	body, err := json.Marshal(userPayload)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -45,16 +123,7 @@ func (s *Config) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 	lastName := r.FormValue("last_name")
 	organisation := r.FormValue("organisation")
 
-	// Generate otp token
-	var minOtp = 100000
-	var maxOtp = 999999
-	seed, err := rand.Int(rand.Reader, big.NewInt(int64(maxOtp)))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	otp := fmt.Sprintf("%06d", seed.Int64()%(int64(maxOtp)-int64(minOtp)+1)+int64(minOtp))
-	fmt.Println(otp)
+	// generate token
 
 	// Create org if it doesn't exist
 	org, err := s.DB.OrganisationFindByName(ctx, organisation)

@@ -1,7 +1,7 @@
 <template>
   <div class="px-4 bg-subtle h-dvh">
     <div class="flex justify-center w-full py-24">
-      <router-view />
+      <slot />
     </div>
   </div>
 </template>

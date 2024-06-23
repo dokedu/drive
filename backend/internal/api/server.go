@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"example/internal/services/mail"
 	"net/http"
 
 	"example/internal/database"
@@ -22,12 +23,13 @@ var (
 )
 
 type Config struct {
-	DB    *database.DB
-	MinIO *minio.Client
+	DB     *database.DB
+	MinIO  *minio.Client
+	Mailer *mail.Mailer
 }
 
 func NewServer(cfg Config) *Config {
-	return &Config{DB: cfg.DB, MinIO: cfg.MinIO}
+	return &Config{DB: cfg.DB, MinIO: cfg.MinIO, Mailer: cfg.Mailer}
 }
 
 func (s *Config) HandleRootRoute(w http.ResponseWriter, r *http.Request) {

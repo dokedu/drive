@@ -3,9 +3,6 @@
     title="Welcome to dokedu drive"
     subtitle="Please enter your login credentials"
   >
-    <template #banner>
-      <d-banner v-if="error" type="error" :title="error.message"></d-banner>
-    </template>
     <template #form>
       <form @submit.prevent="onSubmit" class="flex flex-col gap-5">
         <div class="flex flex-col gap-3">
@@ -20,26 +17,14 @@
             autocomplete="email"
             placeholder="Your email"
           />
-          <d-input
-            size="md"
-            label="Password"
-            v-model="password"
-            type="password"
-            name="password"
-            id="password"
-            required
-            :min="8"
-            autocomplete="current-password"
-            placeholder="Your password"
-          />
         </div>
         <d-button submit type="primary"> Log in </d-button>
-        <router-link
-          class="mx-auto block w-fit rounded-md text-center text-xs font-medium leading-none text-muted hover:text-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-950"
-          to="/forgot-password"
-        >
-          Forgot password
-        </router-link>
+        <div v-if="loginLinkSent" class="text-center text-stone-500 text-sm font-normal leading-tight">
+          Login link sent to your email. Please check your inbox.
+        </div>
+        <div v-if="error" class="text-center text-stone-500 text-sm font-normal leading-tight">
+          {{ error.message }}
+        </div>
       </form>
     </template>
   </d-auth-container>
@@ -50,16 +35,40 @@ import { ref } from "vue";
 import DInput from "@/components/d-input/d-input.vue";
 import DButton from "@/components/d-button/d-button.vue";
 import DAuthContainer from "@/components/_auth/d-auth-container.vue";
+import { useAuthStore } from "@/stores/auth";
 
 definePageMeta({
   layout: "auth",
 });
 
 const email = ref("");
-const password = ref("");
 const error = ref<Error | null>(null);
+const loginLinkSent = ref(false);
+
+const authStore = useAuthStore();
+const route = useRoute();
+
+if (route.hash) {
+  // Get only the part after #token=
+  const token = route.hash.split("#token=")[1];
+
+  if (token) {
+    const response = await authStore.login(token);
+    if (response) {
+      navigateTo("/");
+    } else {
+      navigateTo("/login");
+    }
+  }
+}
 
 async function onSubmit() {
-  //
+  const response = await authStore.getLoginLink(email.value);
+  console.log(response);
+  if (response) {
+    loginLinkSent.value = true;
+  } else {
+    error.value = new Error("There was an error. Please try again.");
+  }
 }
 </script>
