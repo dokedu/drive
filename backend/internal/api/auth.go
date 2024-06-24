@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"example/internal/database/db"
-	"fmt"
 	"github.com/jackc/pgx/v5/pgtype"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"net/http"
@@ -119,23 +118,33 @@ func (s *Config) HandleLogin(w http.ResponseWriter, r *http.Request) {
 func (s *Config) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	email := r.FormValue("email")
-	firstName := r.FormValue("first_name")
-	lastName := r.FormValue("last_name")
+	firstName := r.FormValue("firstName")
+	lastName := r.FormValue("lastName")
 	organisation := r.FormValue("organisation")
 
-	// generate token
+	if email == "" || firstName == "" || lastName == "" || organisation == "" {
+		http.Error(w, "Missing fields", http.StatusBadRequest)
+		return
+	}
 
-	// Create org if it doesn't exist
-	org, err := s.DB.OrganisationFindByName(ctx, organisation)
-	if err != nil {
-		org, err = s.DB.CreateOrganisation(ctx, organisation)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	} else {
-		// Org exists, error
+	// Check if user doesn't exist
+	_, err := s.DB.UserFindByEmail(ctx, email)
+	if err == nil {
+		http.Error(w, "User already exists", http.StatusBadRequest)
+		return
+	}
+
+	// Check if org doesn't already exist
+	_, err = s.DB.OrganisationFindByName(ctx, organisation)
+	if err == nil {
 		http.Error(w, "Organisation already exists", http.StatusBadRequest)
+		return
+	}
+
+	// Create organisation
+	org, err := s.DB.CreateOrganisation(ctx, organisation)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -152,8 +161,29 @@ func (s *Config) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(user)
+	// Generate token
+	token := gonanoid.Must(32)
+
+	// Save the token in db
+	_, err = s.DB.UpdateUserConfirmationToken(ctx, db.UpdateUserConfirmationTokenParams{
+		RecoveryToken:  pgtype.Text{String: token, Valid: true},
+		RecoverySentAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		ID:             user.ID,
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Send email with token
+	err = s.Mailer.SendToken(user.Email, user.FirstName, token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
+	body := []byte(`{"message": "Token sent"}`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
 }

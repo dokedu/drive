@@ -44,6 +44,7 @@ func main() {
 	router.HandleFunc("/", handler.HandleRootRoute).Methods("GET")
 	router.HandleFunc("/one-time-login", handler.HandleOneTimeLogin).Methods("POST")
 	router.HandleFunc("/login", handler.HandleLogin).Methods("POST")
+	router.HandleFunc("/sign-up", handler.HandleSignUp).Methods("POST")
 
 	// File routes
 	fileRouter := router.PathPrefix("/files/").Subrouter()

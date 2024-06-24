@@ -19,6 +19,12 @@
           />
         </div>
         <d-button submit type="primary"> Log in </d-button>
+        <router-link
+          class="mx-auto block w-fit rounded-md text-center text-xs font-medium leading-none text-muted hover:text-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-950"
+          to="/signup"
+        >
+          Create new organisation
+        </router-link>
         <div v-if="loginLinkSent" class="text-center text-stone-500 text-sm font-normal leading-tight">
           Login link sent to your email. Please check your inbox.
         </div>

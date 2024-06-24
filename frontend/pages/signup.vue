@@ -51,13 +51,19 @@
             placeholder="Your organisation name"
           />
         </div>
-        <d-button submit type="primary"> Log in </d-button>
+        <d-button submit type="primary"> Sign up </d-button>
         <router-link
           class="mx-auto block w-fit rounded-md text-center text-xs font-medium leading-none text-muted hover:text-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-950"
-          to="/forgot-password"
+          to="/login"
         >
           Already have an account? Log in
         </router-link>
+        <div v-if="loginLinkSent" class="text-center text-stone-500 text-sm font-normal leading-tight">
+          Signed up successfully. Login link sent to your email. Please check your inbox.
+        </div>
+        <div v-if="error" class="text-center text-stone-500 text-sm font-normal leading-tight">
+          {{ error.message }}
+        </div>
       </form>
     </template>
   </d-auth-container>
@@ -79,8 +85,19 @@ const email = ref("");
 const organisation = ref("");
 
 const error = ref<Error | null>(null);
+const loginLinkSent = ref(false);
+const authStore = useAuthStore();
 
 async function onSubmit() {
-  //
+  if (!firstName.value || !lastName.value || !email.value || !organisation.value) {
+    error.value = new Error("Please fill in all fields");
+    return;
+  }
+  const response = await authStore.register(firstName.value, lastName.value, email.value, organisation.value);
+  if (response) {
+    loginLinkSent.value = true;
+  } else {
+    error.value = new Error("There was an error. Please try again.");
+  }
 }
 </script>
