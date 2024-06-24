@@ -1,10 +1,9 @@
-import { get } from "@vueuse/core";
 import { defineStore } from "pinia";
 
 export const useAuthStore = defineStore("auth", () => {
   // User data
   const userToken = ref("");
-  const user = ref<any>(null);
+  const user = ref({});
 
   // request login link
   async function getLoginLink(email: string) {
@@ -32,7 +31,6 @@ export const useAuthStore = defineStore("auth", () => {
 
     // Convert json to object
     const res = JSON.parse(response)
-    console.log(res.token)
 
     if (!res) {
       return false;
@@ -41,7 +39,7 @@ export const useAuthStore = defineStore("auth", () => {
     userToken.value = res.token;
     user.value = res.user;
 
-    console.log(userToken.value, user.value)
+    console.log(res.user, res.token)
 
     return response;
   }
@@ -53,4 +51,6 @@ export const useAuthStore = defineStore("auth", () => {
     userToken,
     user
   }
+}, {
+  persist: true
 })

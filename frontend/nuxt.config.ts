@@ -8,7 +8,7 @@ export default defineNuxtConfig({
       autoprefixer: {},
     },
   },
-  modules: ["@vueuse/nuxt", "@pinia/nuxt", "radix-vue/nuxt"],
+  modules: ["@vueuse/nuxt", "@pinia/nuxt", "@pinia-plugin-persistedstate/nuxt", "radix-vue/nuxt"],
   vite: {
     optimizeDeps: {
       exclude: ["pdfjs-dist/build/pdf"],

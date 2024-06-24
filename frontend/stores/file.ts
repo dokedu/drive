@@ -36,9 +36,6 @@ export const useFileStore = defineStore("file", () => {
         shared_drive: sharedDrive.value,
         deleted: deleted.value,
       },
-      headers: {
-        Authorization: `${authStore.userToken}`,
-      },
     });
 
     // @ts-ignore
