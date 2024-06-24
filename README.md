@@ -2,14 +2,13 @@
 
 ### To Do's
 
-- Sign In
-  - Passwordless Sign In? (email link)
-- Sign Out
-
 - Sign Up
-  - With first name, last name, email
+  - Add better error handling
+
+- Log out
 
 - Files
+  - Limit to organisation
   - Add "New folder" button
   - Improve renaming UX
 - Shared drives

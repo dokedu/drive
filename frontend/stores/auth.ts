@@ -45,7 +45,7 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function register(firstName: string, lastName: string, email: string, organisation: string) {
-    const response = await $fetch<any>("http://localhost:1323/sign-up", {
+    const { response, error } = await $fetch<any>("http://localhost:1323/sign-up", {
       method: "POST",
       query: {
         firstName: firstName,
@@ -54,15 +54,11 @@ export const useAuthStore = defineStore("auth", () => {
         organisation: organisation
       }
     });
+    console.log(response, error)
 
     // Convert json to object
     const res = JSON.parse(response)
-
-    if (!res) {
-      return false;
-    }
-
-    return response;
+    return res;
   }
 
 

@@ -94,6 +94,7 @@ async function onSubmit() {
     return;
   }
   const response = await authStore.register(firstName.value, lastName.value, email.value, organisation.value);
+  console.log(response);
   if (response) {
     loginLinkSent.value = true;
   } else {
