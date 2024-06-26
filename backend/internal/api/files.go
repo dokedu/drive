@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"example/internal/database/db"
 	"example/internal/middleware"
+	"github.com/gorilla/mux"
 	"io"
 	"log/slog"
 	"net/http"
@@ -77,7 +78,7 @@ func (s *Config) HandleFolders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.PathValue("id")
+	id := mux.Vars(r)["id"]
 
 	folder, err := s.DB.FileFindByParentID(ctx, db.FileFindByParentIDParams{
 		ParentID:       pgtype.Text{String: id, Valid: true},
@@ -239,7 +240,7 @@ func (s *Config) HandleFileDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.PathValue("id")
+	id := mux.Vars(r)["id"]
 
 	err := s.DB.FileSoftDelete(ctx, id)
 	if err != nil {
@@ -259,7 +260,7 @@ func (s *Config) HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.PathValue("id")
+	id := mux.Vars(r)["id"]
 
 	file, err := s.DB.FileFindByID(ctx, db.FileFindByIDParams{
 		ID:             id,
@@ -301,7 +302,7 @@ func (s *Config) HandleFilePatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.PathValue("id")
+	id := mux.Vars(r)["id"]
 
 	var file db.File
 
@@ -345,7 +346,7 @@ func (s *Config) HandleFilePreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	id := r.PathValue("id")
+	id := mux.Vars(r)["id"]
 
 	// Get file from db
 	file, err := s.DB.FileFindByID(ctx, db.FileFindByIDParams{

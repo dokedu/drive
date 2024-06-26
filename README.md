@@ -4,11 +4,9 @@
 
 - Sign Up
   - Add better error handling
-
 - Log out
 
 - Files
-  - Limit to organisation
   - Add "New folder" button
   - Improve renaming UX
 - Shared drives
@@ -39,7 +37,6 @@
 
 **Backend**
 - seeds.sql
-- Bucket name should be a env variable
 - Ensure image previews are cached by providing a cache-control header in the response
 - Enforce total file size limit
   `SELECT SUM(size) FROM files WHERE organization_id = 1` must be less than 1TB
