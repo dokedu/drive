@@ -1,11 +1,17 @@
 package middleware
 
 import (
+	"context"
 	"example/internal/database"
+	"example/internal/database/db"
 	"github.com/gorilla/mux"
 	"net/http"
 	"time"
 )
+
+type ctxKey string
+
+const userCtxKey ctxKey = "user"
 
 // AuthMiddleware creates an Auth middleware with the given database connection.
 func AuthMiddleware(db *database.DB) mux.MiddlewareFunc {
@@ -31,7 +37,22 @@ func AuthMiddleware(db *database.DB) mux.MiddlewareFunc {
 				return
 			}
 
+			user, err := db.UserFindByID(r.Context(), session.UserID)
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			// Add the user to the context
+			ctx := context.WithValue(r.Context(), userCtxKey, user)
+			r = r.WithContext(ctx)
+
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func GetUserFromContext(ctx context.Context) (*db.User, bool) {
+	user, ok := ctx.Value(userCtxKey).(db.User)
+	return &user, ok
 }

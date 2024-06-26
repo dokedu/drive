@@ -11,6 +11,11 @@ FROM users
 WHERE email = $1
   AND deleted_at IS NULL;
 
+-- name: UserFindByID :one
+SELECT *
+FROM users
+WHERE id = $1
+  AND deleted_at IS NULL;
 
 -- name: UpdateUserConfirmationToken :one
 UPDATE users

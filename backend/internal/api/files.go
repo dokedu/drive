@@ -3,9 +3,11 @@ package api
 import (
 	"encoding/json"
 	"example/internal/database/db"
+	"example/internal/middleware"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -18,6 +20,11 @@ type FilesResponse struct {
 
 func (s *Config) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	user, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	parentId := r.URL.Query().Get("parent_id")
 	sharedDrives := r.URL.Query().Get("shared_drive")
@@ -25,13 +32,13 @@ func (s *Config) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	var files []db.File
 	var err error
 	if sharedDrives != "" {
-		files, err = s.DB.FileFindSharedDrives(ctx, "1")
+		files, err = s.DB.FileFindSharedDrives(ctx, user.OrganisationID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	} else if parentId == "" {
-		files, err = s.DB.FileFindAll(ctx, "1")
+		files, err = s.DB.FileFindAll(ctx, user.OrganisationID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -39,7 +46,7 @@ func (s *Config) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	} else {
 		files, err = s.DB.FileFindByParentID(ctx, db.FileFindByParentIDParams{
 			ParentID:       pgtype.Text{String: parentId, Valid: true},
-			OrganisationID: "1",
+			OrganisationID: user.OrganisationID,
 		})
 	}
 
@@ -64,11 +71,17 @@ func (s *Config) HandleFiles(w http.ResponseWriter, r *http.Request) {
 
 func (s *Config) HandleFolders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	user, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 
 	folder, err := s.DB.FileFindByParentID(ctx, db.FileFindByParentIDParams{
 		ParentID:       pgtype.Text{String: id, Valid: true},
-		OrganisationID: "1",
+		OrganisationID: user.OrganisationID,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -96,8 +109,13 @@ func (s *Config) HandleFolders(w http.ResponseWriter, r *http.Request) {
 
 func (s *Config) HandleSharedDrives(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	user, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
-	drives, err := s.DB.FileFindSharedDrives(ctx, "1")
+	drives, err := s.DB.FileFindSharedDrives(ctx, user.OrganisationID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -129,11 +147,16 @@ type FileUploadResponse struct {
 // TODO: handle the case where file doesn't get uploaded but is already in db
 func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	user, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	if r.FormValue("is_folder") != "" {
 		folder, err := s.DB.FileCreateFolder(ctx, db.FileCreateFolderParams{
 			Name:           r.FormValue("name"),
-			OrganisationID: "1",
+			OrganisationID: user.OrganisationID,
 		})
 		if err != nil {
 			http.Error(w, "Error creating file record: "+err.Error(), http.StatusInternalServerError)
@@ -175,7 +198,7 @@ func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 		Name:           fileName,
 		MimeType:       mimeType,
 		FileSize:       fileSize,
-		OrganisationID: "1",
+		OrganisationID: user.OrganisationID,
 	}
 
 	if r.FormValue("parent_id") != "" {
@@ -198,7 +221,7 @@ func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// upload to minio
-	_, err = s.MinIO.PutObject(ctx, "drive", fileCreated.ID, file, fileSize, minio.PutObjectOptions{})
+	_, err = s.MinIO.PutObject(ctx, os.Getenv("MINIO_BUCKET"), fileCreated.ID, file, fileSize, minio.PutObjectOptions{})
 	if err != nil {
 		http.Error(w, "Error uploading file to minio: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -210,6 +233,11 @@ func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 func (s *Config) HandleFileDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	id := r.PathValue("id")
 
@@ -225,12 +253,17 @@ func (s *Config) HandleFileDelete(w http.ResponseWriter, r *http.Request) {
 
 func (s *Config) HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	user, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	id := r.PathValue("id")
 
 	file, err := s.DB.FileFindByID(ctx, db.FileFindByIDParams{
 		ID:             id,
-		OrganisationID: "1",
+		OrganisationID: user.OrganisationID,
 	})
 	if err != nil {
 		slog.Error(err.Error())
@@ -242,7 +275,7 @@ func (s *Config) HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename="+file.Name)
 
 	// download from minio
-	object, err := s.MinIO.GetObject(ctx, "drive", file.ID, minio.GetObjectOptions{})
+	object, err := s.MinIO.GetObject(ctx, os.Getenv("MINIO_BUCKET"), file.ID, minio.GetObjectOptions{})
 	if err != nil {
 		slog.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -262,6 +295,11 @@ func (s *Config) HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 
 func (s *Config) HandleFilePatch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	user, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	id := r.PathValue("id")
 
@@ -279,7 +317,7 @@ func (s *Config) HandleFilePatch(w http.ResponseWriter, r *http.Request) {
 
 	file, err = s.DB.FileUpdateName(ctx, db.FileUpdateNameParams{
 		ID:             id,
-		OrganisationID: "1",
+		OrganisationID: user.OrganisationID,
 		Name:           file.Name,
 	})
 	if err != nil {
@@ -302,12 +340,17 @@ func (s *Config) HandleFilePatch(w http.ResponseWriter, r *http.Request) {
 
 func (s *Config) HandleFilePreview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	user, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 	id := r.PathValue("id")
 
 	// Get file from db
 	file, err := s.DB.FileFindByID(ctx, db.FileFindByIDParams{
 		ID:             id,
-		OrganisationID: "1",
+		OrganisationID: user.OrganisationID,
 	})
 	if err != nil {
 		slog.Error(err.Error())
@@ -316,7 +359,7 @@ func (s *Config) HandleFilePreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get preview url from minio
-	presignedURL, err := s.MinIO.PresignedGetObject(ctx, "drive", file.ID, time.Second*60, nil)
+	presignedURL, err := s.MinIO.PresignedGetObject(ctx, os.Getenv("MINIO_BUCKET"), file.ID, time.Second*60, nil)
 	if err != nil {
 		slog.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)

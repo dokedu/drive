@@ -273,6 +273,33 @@ func (q *Queries) UserFindByEmail(ctx context.Context, email string) (User, erro
 	return i, err
 }
 
+const userFindByID = `-- name: UserFindByID :one
+SELECT id, role, organisation_id, first_name, last_name, email, password, recovery_token, recovery_sent_at, avatar_file_id, created_at, deleted_at
+FROM users
+WHERE id = $1
+  AND deleted_at IS NULL
+`
+
+func (q *Queries) UserFindByID(ctx context.Context, id string) (User, error) {
+	row := q.db.QueryRow(ctx, userFindByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Role,
+		&i.OrganisationID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Password,
+		&i.RecoveryToken,
+		&i.RecoverySentAt,
+		&i.AvatarFileID,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const userFindByToken = `-- name: UserFindByToken :one
 SELECT id, role, organisation_id, first_name, last_name, email, password, recovery_token, recovery_sent_at, avatar_file_id, created_at, deleted_at
 FROM users
