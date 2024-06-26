@@ -134,12 +134,18 @@ const removeSession = `-- name: RemoveSession :one
 UPDATE sessions
 SET deleted_at = NOW()
 WHERE token = $1
+  AND user_id = $2
   AND deleted_at IS NULL
 RETURNING id, user_id, token, created_at, deleted_at
 `
 
-func (q *Queries) RemoveSession(ctx context.Context, token string) (Session, error) {
-	row := q.db.QueryRow(ctx, removeSession, token)
+type RemoveSessionParams struct {
+	Token  string `db:"token" json:"token"`
+	UserID string `db:"user_id" json:"user_id"`
+}
+
+func (q *Queries) RemoveSession(ctx context.Context, arg RemoveSessionParams) (Session, error) {
+	row := q.db.QueryRow(ctx, removeSession, arg.Token, arg.UserID)
 	var i Session
 	err := row.Scan(
 		&i.ID,

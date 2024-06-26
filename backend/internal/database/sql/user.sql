@@ -62,5 +62,6 @@ WHERE token = $1
 UPDATE sessions
 SET deleted_at = NOW()
 WHERE token = $1
+  AND user_id = $2
   AND deleted_at IS NULL
 RETURNING *;

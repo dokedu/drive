@@ -1,5 +1,12 @@
 <script lang="ts" setup>
 import { HardDrive, Server, Trash2, LogOut } from "lucide-vue-next";
+
+const { logout } = useAuthStore();
+
+const onLogout = () => {
+  logout();
+  navigateTo("/login");
+}
 </script>
 
 <template>
@@ -22,7 +29,7 @@ import { HardDrive, Server, Trash2, LogOut } from "lucide-vue-next";
       </div>
     </div>
     <div class="p-2">
-      <d-sidebar-link to="/login">
+      <d-sidebar-link @click="onLogout">
         <LogOut :size="18" />
         Log out
       </d-sidebar-link>

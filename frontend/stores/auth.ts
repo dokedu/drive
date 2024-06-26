@@ -78,11 +78,20 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  async function logout() {
+    await $fetch<any>("http://localhost:1323/logout", {
+      method: "POST",
+    });
+
+    userToken.value = "";
+    user.value = {};
+  }
 
   return {
     getLoginLink,
     login,
     register,
+    logout,
     userToken,
     user
   }

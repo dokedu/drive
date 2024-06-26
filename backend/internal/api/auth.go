@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"example/internal/database/db"
+	"example/internal/middleware"
 	"github.com/jackc/pgx/v5/pgtype"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"net/http"
@@ -184,6 +185,31 @@ func (s *Config) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body := []byte(`{"message": "Token sent"}`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+func (s *Config) HandleLogOut(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	user, ok := middleware.GetUserFromContext(ctx)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get the authorization token
+	token := r.Header.Get("Authorization")
+
+	_, err := s.DB.RemoveSession(ctx, db.RemoveSessionParams{
+		Token:  token,
+		UserID: user.ID,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	body := []byte(`{"message": "Logged out"}`)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
 }

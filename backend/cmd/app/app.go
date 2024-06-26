@@ -46,6 +46,9 @@ func main() {
 	router.HandleFunc("/login", handler.HandleLogin).Methods("POST")
 	router.HandleFunc("/sign-up", handler.HandleSignUp).Methods("POST")
 
+	protected := router.PathPrefix("/").Subrouter()
+	protected.HandleFunc("/logout", handler.HandleLogOut).Methods("POST")
+
 	// File routes
 	fileRouter := router.PathPrefix("/files/").Subrouter()
 	fileRouter.HandleFunc("/{id}", handler.HandleFileDelete).Methods("DELETE")
@@ -57,6 +60,7 @@ func main() {
 	fileRouter.HandleFunc("/folders/{id}", handler.HandleFolders).Methods("GET")
 	fileRouter.HandleFunc("/shared-drives", handler.HandleSharedDrives).Methods("GET")
 
+	protected.Use(middleware.AuthMiddleware(conn))
 	fileRouter.Use(middleware.AuthMiddleware(conn))
 
 	server := http.Server{

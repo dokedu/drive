@@ -2,8 +2,6 @@
 
 ### To Do's
 
-- Log out
-
 - Files
   - Add "New folder" button
   - Improve renaming UX
