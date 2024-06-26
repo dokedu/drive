@@ -29,7 +29,7 @@ func (s *Config) HandleOneTimeLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := s.DB.UserFindByEmail(ctx, email)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "User doesn't exist", http.StatusBadRequest)
 		return
 	}
 

@@ -61,9 +61,6 @@
         <div v-if="loginLinkSent" class="text-center text-stone-500 text-sm font-normal leading-tight">
           Signed up successfully. Login link sent to your email. Please check your inbox.
         </div>
-        <div v-if="error" class="text-center text-stone-500 text-sm font-normal leading-tight">
-          {{ error.message }}
-        </div>
       </form>
     </template>
   </d-auth-container>
@@ -94,8 +91,12 @@ async function onSubmit() {
     return;
   }
   const response = await authStore.register(firstName.value, lastName.value, email.value, organisation.value);
-  console.log(response);
+
   if (response) {
+    if (response.error) {
+      error.value = new Error(response.error);
+      return;
+    } 
     loginLinkSent.value = true;
   } else {
     error.value = new Error("There was an error. Please try again.");

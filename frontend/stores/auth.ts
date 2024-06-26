@@ -7,18 +7,27 @@ export const useAuthStore = defineStore("auth", () => {
 
   // request login link
   async function getLoginLink(email: string) {
-    const response = await $fetch<any>("http://localhost:1323/one-time-login", {
-      method: "POST",
-      query: {
-        email: email
+    try {
+
+      const response = await $fetch<any>("http://localhost:1323/one-time-login", {
+        method: "POST",
+        query: {
+          email: email
+        }
+      });
+
+      if (!response) {
+        return false;
       }
-    });
 
-    if (!response) {
-      return false;
+      return response;
+    } catch (error: any) {
+      console.log(error)
+
+      if (error.status === 400) {
+        return { error: error.data }
+      }
     }
-
-    return response;
   }
 
   async function login(token: string) {
@@ -31,7 +40,6 @@ export const useAuthStore = defineStore("auth", () => {
 
     // Convert json to object
     const res = JSON.parse(response)
-
     if (!res) {
       return false;
     }
@@ -42,23 +50,32 @@ export const useAuthStore = defineStore("auth", () => {
     console.log(res.user, res.token)
 
     return response;
+
   }
 
   async function register(firstName: string, lastName: string, email: string, organisation: string) {
-    const { response, error } = await $fetch<any>("http://localhost:1323/sign-up", {
-      method: "POST",
-      query: {
-        firstName: firstName,
-        lastName: lastName,
-        email: email,
-        organisation: organisation
-      }
-    });
-    console.log(response, error)
+    try {
+      const { response, error } = await $fetch<any>("http://localhost:1323/sign-up", {
+        method: "POST",
+        query: {
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          organisation: organisation
+        }
+      });
+      console.log(response, error)
 
-    // Convert json to object
-    const res = JSON.parse(response)
-    return res;
+      // Convert json to object
+      const res = JSON.parse(response)
+      return res;
+    } catch (error: any) {
+      console.log(error)
+
+      if (error.status === 400) {
+        return { error: error.data }
+      }
+    }
   }
 
 

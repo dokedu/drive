@@ -3,6 +3,9 @@
     title="Welcome to dokedu drive"
     subtitle="Please enter your login credentials"
   >
+    <template #banner>
+      <d-banner v-if="error" type="error" :title="error.message"></d-banner>
+    </template>
     <template #form>
       <form @submit.prevent="onSubmit" class="flex flex-col gap-5">
         <div class="flex flex-col gap-3">
@@ -72,6 +75,11 @@ async function onSubmit() {
   const response = await authStore.getLoginLink(email.value);
   console.log(response);
   if (response) {
+    console.log(response)
+    if (response.error) {
+      error.value = new Error(response.error);
+      return;
+    }
     loginLinkSent.value = true;
   } else {
     error.value = new Error("There was an error. Please try again.");
