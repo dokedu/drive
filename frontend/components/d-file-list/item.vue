@@ -11,7 +11,6 @@ export interface File {
 <script lang="ts" setup>
 import { FileText, FileType, Folder, FileImage, File } from "lucide-vue-next";
 import { useFileStore } from "@/stores/file";
-import { ContextMenuItem, ContextMenuSeparator } from "radix-vue";
 const fileStore = useFileStore();
 
 interface Props {
@@ -76,17 +75,9 @@ async function handleClick() {
   await fileStore.createFolder();
 }
 
-async function handleDelete() {
-  // eslint-disable-next-line no-alert
-  await fileStore.deleteFile(file.id);
-}
-
-async function handleDownload() {
-  // eslint-disable-next-line no-alert
-  await fileStore.downloadFile(file);
-}
 
 async function rename() {
+  console.log("rename")
   await fileStore.updateFileName(file);
 }
 
@@ -94,6 +85,7 @@ const editingName = ref(false);
 
 const renameinput = ref<HTMLInputElement | null>(null);
 
+// TODO: aaron broke dis? doesn't work anymore
 function startRename() {
   console.log("start rename");
   editingName.value = true;
@@ -102,8 +94,6 @@ function startRename() {
 </script>
 
 <template>
-  <d-context-menu>
-    <template #content>
       <div
         class="grid items-center py-2.5 cursor-default text-sm px-4 text-gray-700 gap-8"
         :class="
@@ -111,6 +101,7 @@ function startRename() {
         "
         :style="{ gridTemplateColumns: '6fr 1fr 3fr' }"
         @click="onClick"
+        @contextmenu="onClick"
         :data-id="file.id"
       >
         <div class="flex items-center gap-2 w-full">
@@ -135,37 +126,4 @@ function startRename() {
         <div class="text-right">{{ prettyBytes(file.file_size) }}</div>
         <div>{{ formatTime(file.createdAt) }}</div>
       </div>
-    </template>
-    <template #menu>
-      <ContextMenuItem
-        value="New Folder"
-        class="text-black text-sm px-2 py-1 rounded-md data-[highlighted]:bg-neutral-100 outline-none"
-        @click="handleClick"
-      >
-        New Folder
-      </ContextMenuItem>
-      <ContextMenuSeparator class="border-t border-neutral-100 my-1" />
-      <ContextMenuItem
-        value="Rename"
-        class="text-black text-sm px-2 py-1 rounded-md data-[highlighted]:bg-neutral-100 outline-none"
-      >
-        Rename
-      </ContextMenuItem>
-      <ContextMenuItem
-        value="Delete"
-        class="text-black text-sm px-2 py-1 rounded-md data-[highlighted]:bg-neutral-100 outline-none"
-        @click="handleDelete"
-      >
-        Delete
-      </ContextMenuItem>
-      <ContextMenuSeparator class="border-t border-neutral-100 my-1" />
-      <ContextMenuItem
-        value="Download"
-        class="text-black text-sm px-2 py-1 rounded-md data-[highlighted]:bg-neutral-100 outline-none"
-        @click="handleDownload"
-      >
-        Download
-      </ContextMenuItem>
-    </template>
-  </d-context-menu>
 </template>

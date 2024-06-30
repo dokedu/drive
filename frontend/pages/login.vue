@@ -31,9 +31,6 @@
         <div v-if="loginLinkSent" class="text-center text-stone-500 text-sm font-normal leading-tight">
           Login link sent to your email. Please check your inbox.
         </div>
-        <div v-if="error" class="text-center text-stone-500 text-sm font-normal leading-tight">
-          {{ error.message }}
-        </div>
       </form>
     </template>
   </d-auth-container>
