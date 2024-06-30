@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"example/internal/database/db"
 	"example/internal/middleware"
@@ -24,14 +25,12 @@ type User struct {
 	Role           db.UserRole `json:"role"`
 }
 
-func (s *Config) HandleOneTimeLogin(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (s *Config) HandleOneTimeLogin(ctx context.Context, r *http.Request) ([]byte, error) {
 	email := r.FormValue("email")
 
 	user, err := s.DB.UserFindByEmail(ctx, email)
 	if err != nil {
-		http.Error(w, "User doesn't exist", http.StatusBadRequest)
-		return
+		return nil, ErrNotFound
 	}
 
 	// Generate
@@ -45,39 +44,32 @@ func (s *Config) HandleOneTimeLogin(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	// Send email with token
 	err = s.Mailer.SendToken(user.Email, user.FirstName, token)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	body := []byte(`{"message": "Token sent"}`)
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	return body, nil
 }
 
-func (s *Config) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (s *Config) HandleLogin(ctx context.Context, r *http.Request) ([]byte, error) {
 	token := r.FormValue("token")
 
 	user, err := s.DB.UserFindByToken(ctx, pgtype.Text{String: token, Valid: true})
 	if err != nil {
-		http.Error(w, "Invalid token", http.StatusInternalServerError)
-		return
+		return nil, ErrNotFound
 	}
 
 	// Check if token isn't older than 5 minutes
 	if time.Since(user.RecoverySentAt.Time) > 5*time.Minute {
-		http.Error(w, "Token expired", http.StatusBadRequest)
-
 		// Delete token
 		_, _ = s.DB.ResetUserConfirmationToken(ctx, user.ID)
-		return
+		return nil, ErrUnauthorized
 	}
 
 	// Invalidate token
@@ -90,8 +82,7 @@ func (s *Config) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	userPayload := UserPayload{
@@ -108,45 +99,38 @@ func (s *Config) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(userPayload)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	return body, nil
 }
 
-func (s *Config) HandleSignUp(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (s *Config) HandleSignUp(ctx context.Context, r *http.Request) ([]byte, error) {
 	email := r.FormValue("email")
 	firstName := r.FormValue("firstName")
 	lastName := r.FormValue("lastName")
 	organisation := r.FormValue("organisation")
 
 	if email == "" || firstName == "" || lastName == "" || organisation == "" {
-		http.Error(w, "Missing fields", http.StatusBadRequest)
-		return
+		return nil, ErrBadRequest
 	}
 
 	// Check if user doesn't exist
 	_, err := s.DB.UserFindByEmail(ctx, email)
 	if err == nil {
-		http.Error(w, "User already exists", http.StatusBadRequest)
-		return
+		return nil, ErrBadRequest
 	}
 
 	// Check if org doesn't already exist
 	_, err = s.DB.OrganisationFindByName(ctx, organisation)
 	if err == nil {
-		http.Error(w, "Organisation already exists", http.StatusBadRequest)
-		return
+		return nil, ErrBadRequest
 	}
 
 	// Create organisation
 	org, err := s.DB.CreateOrganisation(ctx, organisation)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	// Create user
@@ -158,8 +142,7 @@ func (s *Config) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 		Role:           "owner",
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	// Generate token
@@ -173,28 +156,23 @@ func (s *Config) HandleSignUp(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	// Send email with token
 	err = s.Mailer.SendToken(user.Email, user.FirstName, token)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	body := []byte(`{"message": "Token sent"}`)
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	return body, nil
 }
 
-func (s *Config) HandleLogOut(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	user, ok := middleware.GetUserFromContext(ctx)
+func (s *Config) HandleLogOut(ctx context.Context, r *http.Request) ([]byte, error) {
+	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		return nil, ErrUnauthorized
 	}
 
 	// Get the authorization token
@@ -205,11 +183,9 @@ func (s *Config) HandleLogOut(w http.ResponseWriter, r *http.Request) {
 		UserID: user.ID,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	body := []byte(`{"message": "Logged out"}`)
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	return body, nil
 }

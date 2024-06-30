@@ -1,10 +1,10 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"example/internal/database/db"
 	"example/internal/middleware"
-	"github.com/gorilla/mux"
 	"io"
 	"log/slog"
 	"net/http"
@@ -19,12 +19,10 @@ type FilesResponse struct {
 	Data []db.File `json:"data"`
 }
 
-func (s *Config) HandleFiles(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	user, ok := middleware.GetUserFromContext(ctx)
+func (s *Config) HandleFiles(ctx context.Context, r *http.Request) ([]byte, error) {
+	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		return nil, ErrUnauthorized
 	}
 
 	parentId := r.URL.Query().Get("parent_id")
@@ -35,14 +33,12 @@ func (s *Config) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	if sharedDrives != "" {
 		files, err = s.DB.FileFindSharedDrives(ctx, user.OrganisationID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return nil, ErrInternal
 		}
 	} else if parentId == "" {
 		files, err = s.DB.FileFindAll(ctx, user.OrganisationID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return nil, ErrInternal
 		}
 	} else {
 		files, err = s.DB.FileFindByParentID(ctx, db.FileFindByParentIDParams{
@@ -60,33 +56,26 @@ func (s *Config) HandleFiles(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(resp)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	return body, nil
 }
 
-func (s *Config) HandleFolders(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	user, ok := middleware.GetUserFromContext(ctx)
+func (s *Config) HandleFolders(ctx context.Context, r *http.Request) ([]byte, error) {
+	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		return nil, ErrUnauthorized
 	}
 
-	id := mux.Vars(r)["id"]
+	id := r.PathValue("id")
 
 	folder, err := s.DB.FileFindByParentID(ctx, db.FileFindByParentIDParams{
 		ParentID:       pgtype.Text{String: id, Valid: true},
 		OrganisationID: user.OrganisationID,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	var resp FilesResponse
@@ -98,28 +87,21 @@ func (s *Config) HandleFolders(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(resp)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	return body, nil
 }
 
-func (s *Config) HandleSharedDrives(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	user, ok := middleware.GetUserFromContext(ctx)
+func (s *Config) HandleSharedDrives(ctx context.Context, r *http.Request) ([]byte, error) {
+	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		return nil, ErrUnauthorized
 	}
 
 	drives, err := s.DB.FileFindSharedDrives(ctx, user.OrganisationID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	var resp FilesResponse
@@ -131,14 +113,10 @@ func (s *Config) HandleSharedDrives(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(resp)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	return body, nil
 }
 
 type FileUploadResponse struct {
@@ -146,12 +124,10 @@ type FileUploadResponse struct {
 }
 
 // TODO: handle the case where file doesn't get uploaded but is already in db
-func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	user, ok := middleware.GetUserFromContext(ctx)
+func (s *Config) HandleFileUpload(ctx context.Context, r *http.Request) ([]byte, error) {
+	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		return nil, ErrUnauthorized
 	}
 
 	if r.FormValue("is_folder") != "" {
@@ -160,8 +136,7 @@ func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 			OrganisationID: user.OrganisationID,
 		})
 		if err != nil {
-			http.Error(w, "Error creating file record: "+err.Error(), http.StatusInternalServerError)
-			return
+			return nil, ErrInternal
 		}
 
 		resp := FileUploadResponse{
@@ -169,25 +144,20 @@ func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 		}
 		responseBody, err := json.Marshal(resp)
 		if err != nil {
-			http.Error(w, "Error marshaling response: "+err.Error(), http.StatusInternalServerError)
-			return
+			return nil, ErrInternal
 		}
 
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(responseBody)
-		return
+		return responseBody, nil
 	}
 
 	err := r.ParseMultipartForm(32 << 20)
 	if err != nil {
-		http.Error(w, "Error parsing form: "+err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		http.Error(w, "Error retrieving file: "+err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 	defer file.Close()
 
@@ -208,8 +178,7 @@ func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	fileCreated, err := s.DB.FileCreate(ctx, fileCreateParams)
 	if err != nil {
-		http.Error(w, "Error creating file record: "+err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	resp := FileUploadResponse{
@@ -217,50 +186,43 @@ func (s *Config) HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	responseBody, err := json.Marshal(resp)
 	if err != nil {
-		http.Error(w, "Error marshaling response: "+err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	// upload to minio
 	_, err = s.MinIO.PutObject(ctx, os.Getenv("MINIO_BUCKET"), fileCreated.ID, file, fileSize, minio.PutObjectOptions{})
 	if err != nil {
-		http.Error(w, "Error uploading file to minio: "+err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(responseBody)
+	return responseBody, nil
 }
 
-func (s *Config) HandleFileDelete(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	_, ok := middleware.GetUserFromContext(ctx)
+func (s *Config) HandleFileDelete(ctx context.Context, r *http.Request) ([]byte, error) {
+	_, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		return nil, ErrUnauthorized
 	}
 
-	id := mux.Vars(r)["id"]
+	id := r.PathValue("id")
 
 	err := s.DB.FileSoftDelete(ctx, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	return nil, nil
 }
 
 func (s *Config) HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	user, ok := middleware.GetUserFromContext(ctx)
+	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	id := mux.Vars(r)["id"]
+	id := r.PathValue("id")
 
 	file, err := s.DB.FileFindByID(ctx, db.FileFindByIDParams{
 		ID:             id,
@@ -294,15 +256,13 @@ func (s *Config) HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (s *Config) HandleFilePatch(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	user, ok := middleware.GetUserFromContext(ctx)
+func (s *Config) HandleFilePatch(ctx context.Context, r *http.Request) ([]byte, error) {
+	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		return nil, ErrUnauthorized
 	}
 
-	id := mux.Vars(r)["id"]
+	id := r.PathValue("id")
 
 	var file db.File
 
@@ -310,8 +270,7 @@ func (s *Config) HandleFilePatch(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&file)
 	if err != nil {
 		slog.Error(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrBadRequest
 	}
 
 	slog.Info("the file", "file", file)
@@ -323,30 +282,24 @@ func (s *Config) HandleFilePatch(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		slog.Error(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	body, err := json.Marshal(file)
 	if err != nil {
 		slog.Error(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	return body, nil
 }
 
-func (s *Config) HandleFilePreview(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	user, ok := middleware.GetUserFromContext(ctx)
+func (s *Config) HandleFilePreview(ctx context.Context, r *http.Request) ([]byte, error) {
+	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		return nil, ErrUnauthorized
 	}
-	id := mux.Vars(r)["id"]
+	id := r.PathValue("id")
 
 	// Get file from db
 	file, err := s.DB.FileFindByID(ctx, db.FileFindByIDParams{
@@ -355,16 +308,14 @@ func (s *Config) HandleFilePreview(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		slog.Error(err.Error())
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
+		return nil, ErrInternal
 	}
 
 	// Get preview url from minio
 	presignedURL, err := s.MinIO.PresignedGetObject(ctx, os.Getenv("MINIO_BUCKET"), file.ID, time.Second*60, nil)
 	if err != nil {
 		slog.Error(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
 	res := struct {
@@ -374,12 +325,8 @@ func (s *Config) HandleFilePreview(w http.ResponseWriter, r *http.Request) {
 	body, err := json.Marshal(res)
 	if err != nil {
 		slog.Error(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, ErrInternal
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "max-age=3600")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	return body, nil
 }

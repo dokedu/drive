@@ -52,11 +52,13 @@ WHERE recovery_token = $1
 -- name: CreateSession :one
 INSERT INTO sessions (user_id, token ) VALUES ($1, $2) RETURNING *;
 
--- name: FindSessionByToken :one
-SELECT *
-FROM sessions
-WHERE token = $1
-  AND deleted_at IS NULL;
+-- name: GLOBAL_UserFindBySessionToken :one
+SELECT users.*
+FROM users
+         INNER JOIN public.sessions s ON users.id = s.user_id
+WHERE s.token = $1
+  AND users.deleted_at IS NULL
+  AND s.deleted_at IS NULL;
 
 -- name: RemoveSession :one
 UPDATE sessions

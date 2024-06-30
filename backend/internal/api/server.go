@@ -18,8 +18,10 @@ type Response struct {
 }
 
 var (
-	ErrNotFound = errors.New("not found")
-	ErrInternal = errors.New("internal error")
+	ErrNotFound     = errors.New("not found")
+	ErrInternal     = errors.New("internal error")
+	ErrUnauthorized = errors.New("unauthorized")
+	ErrBadRequest   = errors.New("bad request")
 )
 
 type Config struct {

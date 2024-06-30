@@ -89,20 +89,29 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
-const findSessionByToken = `-- name: FindSessionByToken :one
-SELECT id, user_id, token, created_at, deleted_at
-FROM sessions
-WHERE token = $1
-  AND deleted_at IS NULL
+const gLOBAL_UserFindBySessionToken = `-- name: GLOBAL_UserFindBySessionToken :one
+SELECT users.id, users.role, users.organisation_id, users.first_name, users.last_name, users.email, users.password, users.recovery_token, users.recovery_sent_at, users.avatar_file_id, users.created_at, users.deleted_at
+FROM users
+         INNER JOIN public.sessions s ON users.id = s.user_id
+WHERE s.token = $1
+  AND users.deleted_at IS NULL
+  AND s.deleted_at IS NULL
 `
 
-func (q *Queries) FindSessionByToken(ctx context.Context, token string) (Session, error) {
-	row := q.db.QueryRow(ctx, findSessionByToken, token)
-	var i Session
+func (q *Queries) GLOBAL_UserFindBySessionToken(ctx context.Context, token string) (User, error) {
+	row := q.db.QueryRow(ctx, gLOBAL_UserFindBySessionToken, token)
+	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
-		&i.Token,
+		&i.Role,
+		&i.OrganisationID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Password,
+		&i.RecoveryToken,
+		&i.RecoverySentAt,
+		&i.AvatarFileID,
 		&i.CreatedAt,
 		&i.DeletedAt,
 	)
