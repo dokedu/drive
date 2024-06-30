@@ -29,7 +29,7 @@ export const useFileStore = defineStore("file", () => {
   }
 
   async function fetchFiles() {
-    const response = await $fetch<any>("http://localhost:1323/files/", {
+    const response = await $fetch<any>("http://localhost:1323/files", {
       method: "GET",
       query: {
         parent_id: parentId.value,
@@ -49,7 +49,7 @@ export const useFileStore = defineStore("file", () => {
     formData.append("name", "Untitled Folder");
     formData.append("is_folder", "true");
 
-    const response = await $fetch<any>("http://localhost:1323/files/", {
+    const response = await $fetch<any>("http://localhost:1323/files", {
       method: "POST",
       body: formData,
       headers: {
@@ -98,7 +98,7 @@ export const useFileStore = defineStore("file", () => {
         form.append("parent_id", parentId.value);
       }
 
-      await $fetch("http://localhost:1323/files/", {
+      await $fetch("http://localhost:1323/files", {
         method: "POST",
         body: form,
         headers: {

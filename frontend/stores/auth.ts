@@ -9,7 +9,7 @@ export const useAuthStore = defineStore("auth", () => {
   async function getLoginLink(email: string) {
     try {
 
-      const response = await $fetch<any>("http://localhost:1323/one-time-login", {
+      const response = await $fetch<any>("http://localhost:1323/one_time_login", {
         method: "POST",
         query: {
           email: email
@@ -38,16 +38,10 @@ export const useAuthStore = defineStore("auth", () => {
       }
     });
 
-    // Convert json to object
-    const res = JSON.parse(response)
-    if (!res) {
-      return false;
-    }
+    userToken.value = response.token;
+    user.value = response.user;
 
-    userToken.value = res.token;
-    user.value = res.user;
-
-    console.log(res.user, res.token)
+    console.log(response.user, response.token)
 
     return response;
 
@@ -55,7 +49,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function register(firstName: string, lastName: string, email: string, organisation: string) {
     try {
-      const { response, error } = await $fetch<any>("http://localhost:1323/sign-up", {
+      const { response, error } = await $fetch<any>("http://localhost:1323/sign_up", {
         method: "POST",
         query: {
           firstName: firstName,
@@ -64,11 +58,8 @@ export const useAuthStore = defineStore("auth", () => {
           organisation: organisation
         }
       });
-      console.log(response, error)
 
-      // Convert json to object
-      const res = JSON.parse(response)
-      return res;
+      return response;
     } catch (error: any) {
       console.log(error)
 
