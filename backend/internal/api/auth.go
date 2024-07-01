@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"example/internal/database/db"
 	"example/internal/middleware"
-	"github.com/jackc/pgx/v5/pgtype"
-	gonanoid "github.com/matoous/go-nanoid/v2"
 	"net/http"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 type UserPayload struct {
@@ -97,12 +98,7 @@ func (s *Config) HandleLogin(ctx context.Context, r *http.Request) ([]byte, erro
 		},
 	}
 
-	body, err := json.Marshal(userPayload)
-	if err != nil {
-		return nil, ErrInternal
-	}
-
-	return body, nil
+	return json.Marshal(userPayload)
 }
 
 func (s *Config) HandleSignUp(ctx context.Context, r *http.Request) ([]byte, error) {

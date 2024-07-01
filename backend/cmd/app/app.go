@@ -48,21 +48,21 @@ func main() {
 
 	// Public routes
 	router.HandleFunc("GET /", handler.HandleRootRoute)
-	router.HandleFunc("POST /one_time_login", wrapper(handler.HandleOneTimeLogin))
-	router.HandleFunc("POST /login", wrapper(handler.HandleLogin))
-	router.HandleFunc("POST /sign_up", wrapper(handler.HandleSignUp))
+	router.HandleFunc("POST /one_time_login", wrap(handler.HandleOneTimeLogin))
+	router.HandleFunc("POST /login", wrap(handler.HandleLogin))
+	router.HandleFunc("POST /sign_up", wrap(handler.HandleSignUp))
 
-	router.HandleFunc("POST /logout", wrapper(handler.HandleLogOut))
+	router.HandleFunc("POST /logout", wrap(handler.HandleLogOut))
 
 	// File routes
-	router.HandleFunc("DELETE /files/{id}", wrapper(handler.HandleFileDelete))
-	router.HandleFunc("PATCH /files/{id}", wrapper(handler.HandleFilePatch))
+	router.HandleFunc("DELETE /files/{id}", wrap(handler.HandleFileDelete))
+	router.HandleFunc("PATCH /files/{id}", wrap(handler.HandleFilePatch))
 	router.HandleFunc("GET /files/{id}/download", handler.HandleFileDownload)
-	router.HandleFunc("GET /files/{id}/preview", wrapper(handler.HandleFilePreview))
-	router.HandleFunc("GET /files", wrapper(handler.HandleFiles))
-	router.HandleFunc("POST /files", wrapper(handler.HandleFileUpload))
-	router.HandleFunc("GET /folders/{id}", wrapper(handler.HandleFolders))
-	router.HandleFunc("GET /shared_drives", wrapper(handler.HandleSharedDrives))
+	router.HandleFunc("GET /files/{id}/preview", wrap(handler.HandleFilePreview))
+	router.HandleFunc("GET /files", wrap(handler.HandleFiles))
+	router.HandleFunc("POST /files", wrap(handler.HandleFileUpload))
+	router.HandleFunc("GET /folders/{id}", wrap(handler.HandleFolders))
+	router.HandleFunc("GET /shared_drives", wrap(handler.HandleSharedDrives))
 
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -78,7 +78,8 @@ func main() {
 	}
 }
 
-func wrapper(handler func(ctx context.Context, r *http.Request) ([]byte, error)) http.HandlerFunc {
+// wrap is a helper function to wrap the http handler functions with error handling
+func wrap(handler func(ctx context.Context, r *http.Request) ([]byte, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 

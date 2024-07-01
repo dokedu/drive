@@ -1,34 +1,7 @@
 # Dokedu Drive
 
-### To Do's
+Dokedu Drive is a cloud storage service that allows you to store files and access them from anywhere. It is a simple and easy-to-use platform that offers secure and reliable storage for your files.
 
-- Files
-  - Improve renaming UX - Aaron started this but seems to be broken rn
-- Shared drives
-  - Create
-  - Edit sharing
-  - Archive
-- Trash
-  - Restore file
+<br />
 
-- Settings
-  - Account
-    - Upload profile picture
-    - Change first and last name
-  - Admin (only for admins or owners)
-    - Users
-      - Invite user (via email)
-      - Archive user
-    - Billing
-      - Write support@dokedu.org for more details
-
-
-#### Technical
-
-**Frontend**
-- i18n (translations)
-- favicon
-
-**Backend**
-- Enforce total file size limit
-  `SELECT SUM(size) FROM files WHERE organization_id = 1` must be less than 1TB
+© 2024-present, Dokedu UG (haftungsbeschränkt)

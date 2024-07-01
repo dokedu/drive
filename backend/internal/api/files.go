@@ -54,12 +54,7 @@ func (s *Config) HandleFiles(ctx context.Context, r *http.Request) ([]byte, erro
 		resp.Data = make([]db.File, 0)
 	}
 
-	body, err := json.Marshal(resp)
-	if err != nil {
-		return nil, ErrInternal
-	}
-
-	return body, nil
+	return json.Marshal(resp)
 }
 
 func (s *Config) HandleFolders(ctx context.Context, r *http.Request) ([]byte, error) {
@@ -85,12 +80,7 @@ func (s *Config) HandleFolders(ctx context.Context, r *http.Request) ([]byte, er
 		resp.Data = make([]db.File, 0)
 	}
 
-	body, err := json.Marshal(resp)
-	if err != nil {
-		return nil, ErrInternal
-	}
-
-	return body, nil
+	return json.Marshal(resp)
 }
 
 func (s *Config) HandleSharedDrives(ctx context.Context, r *http.Request) ([]byte, error) {
@@ -111,12 +101,7 @@ func (s *Config) HandleSharedDrives(ctx context.Context, r *http.Request) ([]byt
 		resp.Data = make([]db.File, 0)
 	}
 
-	body, err := json.Marshal(resp)
-	if err != nil {
-		return nil, ErrInternal
-	}
-
-	return body, nil
+	return json.Marshal(resp)
 }
 
 type FileUploadResponse struct {
@@ -285,13 +270,7 @@ func (s *Config) HandleFilePatch(ctx context.Context, r *http.Request) ([]byte, 
 		return nil, ErrInternal
 	}
 
-	body, err := json.Marshal(file)
-	if err != nil {
-		slog.Error(err.Error())
-		return nil, ErrInternal
-	}
-
-	return body, nil
+	return json.Marshal(file)
 }
 
 func (s *Config) HandleFilePreview(ctx context.Context, r *http.Request) ([]byte, error) {
@@ -322,11 +301,6 @@ func (s *Config) HandleFilePreview(ctx context.Context, r *http.Request) ([]byte
 		URL string `json:"url"`
 	}{}
 	res.URL = presignedURL.String()
-	body, err := json.Marshal(res)
-	if err != nil {
-		slog.Error(err.Error())
-		return nil, ErrInternal
-	}
 
-	return body, nil
+	return json.Marshal(res)
 }
