@@ -14,11 +14,10 @@ type Mailer struct {
 }
 
 type Config struct {
-	Host     string `env:"SMTP_HOST"`
-	Port     int    `env:"SMTP_PORT"`
-	Username string `env:"SMTP_USERNAME"`
-	Password string `env:"SMTP_PASSWORD"`
-
+	Host        string `env:"SMTP_HOST"`
+	Port        int    `env:"SMTP_PORT"`
+	Username    string `env:"SMTP_USERNAME"`
+	Password    string `env:"SMTP_PASSWORD"`
 	FrontendURL string `env:"FRONTEND_URL"`
 }
 

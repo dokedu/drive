@@ -19,20 +19,24 @@ WHERE id = $1
 
 -- name: UpdateUserConfirmationToken :one
 UPDATE users
-SET recovery_token = @recovery_token, recovery_sent_at = @recovery_sent_at
+SET recovery_token   = @recovery_token,
+    recovery_sent_at = @recovery_sent_at
 WHERE id = @id
   AND deleted_at IS NULL
 RETURNING *;
 
 -- name: ResetUserConfirmationToken :one
 UPDATE users
-SET recovery_token = NULL, recovery_sent_at = NULL
+SET recovery_token   = NULL,
+    recovery_sent_at = NULL
 WHERE id = $1
   AND deleted_at IS NULL
 RETURNING *;
 
 -- name: CreateOrganisation :one
-INSERT INTO organisations (name) VALUES ($1) RETURNING *;
+INSERT INTO organisations (name)
+VALUES ($1)
+RETURNING *;
 
 -- name: OrganisationFindByName :one
 SELECT *
@@ -41,7 +45,9 @@ WHERE name = $1
   AND deleted_at IS NULL;
 
 -- name: CreateUser :one
-INSERT INTO users (email, first_name, last_name, organisation_id, role) VALUES ($1, $2, $3, $4, $5) RETURNING *;
+INSERT INTO users (email, first_name, last_name, organisation_id, role)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING *;
 
 -- name: UserFindByToken :one
 SELECT *
@@ -50,10 +56,13 @@ WHERE recovery_token = $1
   AND deleted_at IS NULL;
 
 -- name: CreateSession :one
-INSERT INTO sessions (user_id, token ) VALUES ($1, $2) RETURNING *;
+INSERT INTO sessions (user_id, token)
+VALUES ($1, $2)
+RETURNING *;
 
 -- name: GLOBAL_UserFindBySessionToken :one
-SELECT users.*
+SELECT
+    users.*
 FROM users
          INNER JOIN public.sessions s ON users.id = s.user_id
 WHERE s.token = $1

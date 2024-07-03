@@ -41,29 +41,39 @@ func main() {
 		Mailer: &mailer,
 	})
 
+	// Middlewares
 	stack := middleware.CreateStack(
 		middleware.CORS,
 		middleware.Authentication,
 	)
 
 	// Public routes
-	router.HandleFunc("GET /", handler.HandleRootRoute)
-	router.HandleFunc("POST /one_time_login", wrap(handler.HandleOneTimeLogin))
-	router.HandleFunc("POST /login", wrap(handler.HandleLogin))
-	router.HandleFunc("POST /sign_up", wrap(handler.HandleSignUp))
+	router.HandleFunc("GET /", wrap(handler.RootRoute))
+	router.HandleFunc("GET /healthz", wrap(handler.Healthz))
 
-	router.HandleFunc("POST /logout", wrap(handler.HandleLogOut))
+	// Auth routes
+	router.HandleFunc("POST /one_time_login", wrap(handler.OneTimeLogin))
+	router.HandleFunc("POST /sign_in", wrap(handler.SignIn))
+	router.HandleFunc("POST /sign_up", wrap(handler.SignUp))
+	router.HandleFunc("POST /logout", wrap(handler.LogOut))
 
 	// File routes
-	router.HandleFunc("DELETE /files/{id}", wrap(handler.HandleFileDelete))
-	router.HandleFunc("PATCH /files/{id}", wrap(handler.HandleFilePatch))
-	router.HandleFunc("GET /files/{id}/download", handler.HandleFileDownload)
-	router.HandleFunc("GET /files/{id}/preview", wrap(handler.HandleFilePreview))
-	router.HandleFunc("GET /files", wrap(handler.HandleFiles))
-	router.HandleFunc("POST /files", wrap(handler.HandleFileUpload))
-	router.HandleFunc("GET /folders/{id}", wrap(handler.HandleFolders))
-	router.HandleFunc("GET /shared_drives", wrap(handler.HandleSharedDrives))
+	router.HandleFunc("GET /files", wrap(handler.Files))
+	router.HandleFunc("POST /files", wrap(handler.FileUpload))
 
+	router.HandleFunc("PATCH /files/{id}", wrap(handler.FilePatch))
+	router.HandleFunc("DELETE /files/{id}", wrap(handler.FileDelete))
+
+	router.HandleFunc("GET /files/{id}/preview", wrap(handler.FilePreview))
+	router.HandleFunc("GET /files/{id}/download", handler.FileDownload)
+
+	// Folder routes
+	router.HandleFunc("GET /folders/{id}", wrap(handler.Folders))
+
+	// Shared drive routes
+	router.HandleFunc("GET /shared_drives", wrap(handler.SharedDrives))
+
+	// Server
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: stack(router),
@@ -81,29 +91,29 @@ func main() {
 // wrap is a helper function to wrap the http handler functions with error handling
 func wrap(handler func(ctx context.Context, r *http.Request) ([]byte, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		res, err := handler(r.Context(), r)
 
-		res, err := handler(ctx, r)
-		if err != nil {
-			if errors.Is(err, api.ErrUnauthorized) {
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-			if errors.Is(err, api.ErrBadRequest) {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+		switch {
+		case errors.Is(err, api.ErrUnauthorized):
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		case errors.Is(err, api.ErrBadRequest):
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		case errors.Is(err, api.ErrInternal):
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		case err != nil:
 			slog.Error("error handling request", "err", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
+		default:
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, err = w.Write(res)
+			if err != nil {
+				return
+			}
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, err = w.Write(res)
-		if err != nil {
-			slog.Error("error writing response", "err", err)
-			return
-		}
-		return
 	}
 }

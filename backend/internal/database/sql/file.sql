@@ -31,13 +31,14 @@ RETURNING *;
 
 -- name: FileCreateFolder :one
 INSERT INTO files (name, mime_type, file_size, is_folder, organisation_id)
-VALUES (@name, 'directory', 0,  true, @organisation_id)
+VALUES (@name, 'directory', 0, TRUE, @organisation_id)
 RETURNING *;
 
 -- name: FileFindTrashed :many
 SELECT *
 FROM files
-WHERE deleted_at IS NOT NULL AND organisation_id = $1;
+WHERE deleted_at IS NOT NULL
+  AND organisation_id = $1;
 
 -- name: FileSoftDelete :exec
 UPDATE files
@@ -54,5 +55,7 @@ WHERE id = $1
 -- name: FileUpdateName :one
 UPDATE files
 SET name = $1
-WHERE id = $2 AND organisation_id = $3 AND deleted_at IS NULL
+WHERE id = $2
+  AND organisation_id = $3
+  AND deleted_at IS NULL
 RETURNING *;

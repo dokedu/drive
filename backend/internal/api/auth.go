@@ -26,7 +26,11 @@ type User struct {
 	Role           db.UserRole `json:"role"`
 }
 
-func (s *Config) HandleOneTimeLogin(ctx context.Context, r *http.Request) ([]byte, error) {
+type OneTimeLoginResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *Config) OneTimeLogin(ctx context.Context, r *http.Request) ([]byte, error) {
 	email := r.FormValue("email")
 
 	user, err := s.DB.UserFindByEmail(ctx, email)
@@ -34,16 +38,17 @@ func (s *Config) HandleOneTimeLogin(ctx context.Context, r *http.Request) ([]byt
 		return nil, ErrNotFound
 	}
 
-	// Generate
+	// New random token
 	token := gonanoid.Must(32)
 
-	// Save the token in db
-	_, err = s.DB.UpdateUserConfirmationToken(ctx, db.UpdateUserConfirmationTokenParams{
+	updateUserConfirmationTokenParams := db.UpdateUserConfirmationTokenParams{
 		RecoveryToken:  pgtype.Text{String: token, Valid: true},
 		RecoverySentAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		ID:             user.ID,
-	})
+	}
 
+	// Save the token in db
+	_, err = s.DB.UpdateUserConfirmationToken(ctx, updateUserConfirmationTokenParams)
 	if err != nil {
 		return nil, ErrInternal
 	}
@@ -54,11 +59,17 @@ func (s *Config) HandleOneTimeLogin(ctx context.Context, r *http.Request) ([]byt
 		return nil, ErrInternal
 	}
 
-	body := []byte(`{"message": "Token sent"}`)
-	return body, nil
+	return json.Marshal(OneTimeLoginResponse{
+		Message: "Token sent",
+	})
 }
 
-func (s *Config) HandleLogin(ctx context.Context, r *http.Request) ([]byte, error) {
+type SignInResponse struct {
+	Token string `json:"token"`
+	User  User   `json:"user"`
+}
+
+func (s *Config) SignIn(ctx context.Context, r *http.Request) ([]byte, error) {
 	token := r.FormValue("token")
 
 	user, err := s.DB.UserFindByToken(ctx, pgtype.Text{String: token, Valid: true})
@@ -66,27 +77,30 @@ func (s *Config) HandleLogin(ctx context.Context, r *http.Request) ([]byte, erro
 		return nil, ErrNotFound
 	}
 
-	// Check if token isn't older than 5 minutes
+	// If the token is older than 5 minutes, delete it
 	if time.Since(user.RecoverySentAt.Time) > 5*time.Minute {
-		// Delete token
 		_, _ = s.DB.ResetUserConfirmationToken(ctx, user.ID)
 		return nil, ErrUnauthorized
 	}
 
 	// Invalidate token
-	_, _ = s.DB.ResetUserConfirmationToken(ctx, user.ID)
-
-	// Create session
-	session, err := s.DB.CreateSession(ctx, db.CreateSessionParams{
-		UserID: user.ID,
-		Token:  gonanoid.Must(32),
-	})
-
+	_, err = s.DB.ResetUserConfirmationToken(ctx, user.ID)
 	if err != nil {
 		return nil, ErrInternal
 	}
 
-	userPayload := UserPayload{
+	sessionParams := db.CreateSessionParams{
+		UserID: user.ID,
+		Token:  gonanoid.Must(32),
+	}
+
+	// Create session
+	session, err := s.DB.CreateSession(ctx, sessionParams)
+	if err != nil {
+		return nil, ErrInternal
+	}
+
+	response := SignInResponse{
 		Token: session.Token,
 		User: User{
 			ID:             user.ID,
@@ -98,16 +112,27 @@ func (s *Config) HandleLogin(ctx context.Context, r *http.Request) ([]byte, erro
 		},
 	}
 
-	return json.Marshal(userPayload)
+	return json.Marshal(response)
 }
 
-func (s *Config) HandleSignUp(ctx context.Context, r *http.Request) ([]byte, error) {
+type SignUpResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *Config) SignUp(ctx context.Context, r *http.Request) ([]byte, error) {
 	email := r.FormValue("email")
 	firstName := r.FormValue("firstName")
 	lastName := r.FormValue("lastName")
 	organisation := r.FormValue("organisation")
 
-	if email == "" || firstName == "" || lastName == "" || organisation == "" {
+	switch {
+	case email == "":
+		return nil, ErrBadRequest
+	case firstName == "":
+		return nil, ErrBadRequest
+	case lastName == "":
+		return nil, ErrBadRequest
+	case organisation == "":
 		return nil, ErrBadRequest
 	}
 
@@ -129,14 +154,16 @@ func (s *Config) HandleSignUp(ctx context.Context, r *http.Request) ([]byte, err
 		return nil, ErrInternal
 	}
 
-	// Create user
-	user, err := s.DB.CreateUser(ctx, db.CreateUserParams{
+	createUserParams := db.CreateUserParams{
 		Email:          email,
 		FirstName:      firstName,
 		LastName:       lastName,
 		OrganisationID: org.ID,
-		Role:           "owner",
-	})
+		Role:           db.UserRoleOwner,
+	}
+
+	// Create user
+	user, err := s.DB.CreateUser(ctx, createUserParams)
 	if err != nil {
 		return nil, ErrInternal
 	}
@@ -144,13 +171,14 @@ func (s *Config) HandleSignUp(ctx context.Context, r *http.Request) ([]byte, err
 	// Generate token
 	token := gonanoid.Must(32)
 
-	// Save the token in db
-	_, err = s.DB.UpdateUserConfirmationToken(ctx, db.UpdateUserConfirmationTokenParams{
+	confirmationTokenParams := db.UpdateUserConfirmationTokenParams{
 		RecoveryToken:  pgtype.Text{String: token, Valid: true},
 		RecoverySentAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		ID:             user.ID,
-	})
+	}
 
+	// Save the token in db
+	_, err = s.DB.UpdateUserConfirmationToken(ctx, confirmationTokenParams)
 	if err != nil {
 		return nil, ErrInternal
 	}
@@ -161,11 +189,16 @@ func (s *Config) HandleSignUp(ctx context.Context, r *http.Request) ([]byte, err
 		return nil, ErrInternal
 	}
 
-	body := []byte(`{"message": "Token sent"}`)
-	return body, nil
+	return json.Marshal(SignUpResponse{
+		Message: "Token sent",
+	})
 }
 
-func (s *Config) HandleLogOut(ctx context.Context, r *http.Request) ([]byte, error) {
+type LogOutResponse struct {
+	Message string `json:"message"`
+}
+
+func (s *Config) LogOut(ctx context.Context, r *http.Request) ([]byte, error) {
 	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
 		return nil, ErrUnauthorized
@@ -174,14 +207,17 @@ func (s *Config) HandleLogOut(ctx context.Context, r *http.Request) ([]byte, err
 	// Get the authorization token
 	token := r.Header.Get("Authorization")
 
-	_, err := s.DB.RemoveSession(ctx, db.RemoveSessionParams{
+	removeSessionParams := db.RemoveSessionParams{
 		Token:  token,
 		UserID: user.ID,
-	})
+	}
+
+	_, err := s.DB.RemoveSession(ctx, removeSessionParams)
 	if err != nil {
 		return nil, ErrInternal
 	}
 
-	body := []byte(`{"message": "Logged out"}`)
-	return body, nil
+	return json.Marshal(LogOutResponse{
+		Message: "Logged out",
+	})
 }

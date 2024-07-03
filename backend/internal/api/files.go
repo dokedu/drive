@@ -19,7 +19,7 @@ type FilesResponse struct {
 	Data []db.File `json:"data"`
 }
 
-func (s *Config) HandleFiles(ctx context.Context, r *http.Request) ([]byte, error) {
+func (s *Config) Files(ctx context.Context, r *http.Request) ([]byte, error) {
 	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
 		return nil, ErrUnauthorized
@@ -47,17 +47,25 @@ func (s *Config) HandleFiles(ctx context.Context, r *http.Request) ([]byte, erro
 		})
 	}
 
-	var resp FilesResponse
-	resp.Data = files
-
-	if len(files) == 0 {
-		resp.Data = make([]db.File, 0)
+	switch {
+	case err != nil:
+		return nil, ErrInternal
+	case len(files) == 0:
+		return json.Marshal(FilesResponse{
+			Data: make([]db.File, 0),
+		})
+	default:
+		return json.Marshal(FilesResponse{
+			Data: files,
+		})
 	}
-
-	return json.Marshal(resp)
 }
 
-func (s *Config) HandleFolders(ctx context.Context, r *http.Request) ([]byte, error) {
+type FoldersResponse struct {
+	Data []db.File `json:"data"`
+}
+
+func (s *Config) Folders(ctx context.Context, r *http.Request) ([]byte, error) {
 	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
 		return nil, ErrUnauthorized
@@ -65,15 +73,17 @@ func (s *Config) HandleFolders(ctx context.Context, r *http.Request) ([]byte, er
 
 	id := r.PathValue("id")
 
-	folder, err := s.DB.FileFindByParentID(ctx, db.FileFindByParentIDParams{
+	fileFindByParentIDParams := db.FileFindByParentIDParams{
 		ParentID:       pgtype.Text{String: id, Valid: true},
 		OrganisationID: user.OrganisationID,
-	})
+	}
+
+	folder, err := s.DB.FileFindByParentID(ctx, fileFindByParentIDParams)
 	if err != nil {
 		return nil, ErrInternal
 	}
 
-	var resp FilesResponse
+	var resp FoldersResponse
 	resp.Data = folder
 
 	if len(folder) == 0 {
@@ -83,7 +93,11 @@ func (s *Config) HandleFolders(ctx context.Context, r *http.Request) ([]byte, er
 	return json.Marshal(resp)
 }
 
-func (s *Config) HandleSharedDrives(ctx context.Context, r *http.Request) ([]byte, error) {
+type SharedDrivesResponse struct {
+	Data []db.File `json:"data"`
+}
+
+func (s *Config) SharedDrives(ctx context.Context, r *http.Request) ([]byte, error) {
 	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
 		return nil, ErrUnauthorized
@@ -94,7 +108,7 @@ func (s *Config) HandleSharedDrives(ctx context.Context, r *http.Request) ([]byt
 		return nil, ErrInternal
 	}
 
-	var resp FilesResponse
+	var resp SharedDrivesResponse
 	resp.Data = drives
 
 	if len(drives) == 0 {
@@ -108,12 +122,14 @@ type FileUploadResponse struct {
 	Data db.File `json:"data"`
 }
 
-// TODO: handle the case where file doesn't get uploaded but is already in db
-func (s *Config) HandleFileUpload(ctx context.Context, r *http.Request) ([]byte, error) {
+func (s *Config) FileUpload(ctx context.Context, r *http.Request) ([]byte, error) {
 	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
 		return nil, ErrUnauthorized
 	}
+
+	// TODO: handle the case where file doesn't get uploaded but is already in db
+	//  Hint: you can do that with a transaction
 
 	if r.FormValue("is_folder") != "" {
 		folder, err := s.DB.FileCreateFolder(ctx, db.FileCreateFolderParams{
@@ -127,12 +143,7 @@ func (s *Config) HandleFileUpload(ctx context.Context, r *http.Request) ([]byte,
 		resp := FileUploadResponse{
 			Data: folder,
 		}
-		responseBody, err := json.Marshal(resp)
-		if err != nil {
-			return nil, ErrInternal
-		}
-
-		return responseBody, nil
+		return json.Marshal(resp)
 	}
 
 	err := r.ParseMultipartForm(32 << 20)
@@ -146,14 +157,10 @@ func (s *Config) HandleFileUpload(ctx context.Context, r *http.Request) ([]byte,
 	}
 	defer file.Close()
 
-	fileName := header.Filename
-	mimeType := header.Header.Get("Content-Type")
-	fileSize := header.Size
-
 	fileCreateParams := db.FileCreateParams{
-		Name:           fileName,
-		MimeType:       mimeType,
-		FileSize:       fileSize,
+		Name:           header.Filename,
+		MimeType:       header.Header.Get("Content-Type"),
+		FileSize:       header.Size,
 		OrganisationID: user.OrganisationID,
 	}
 
@@ -166,32 +173,24 @@ func (s *Config) HandleFileUpload(ctx context.Context, r *http.Request) ([]byte,
 		return nil, ErrInternal
 	}
 
-	resp := FileUploadResponse{
-		Data: fileCreated,
-	}
-	responseBody, err := json.Marshal(resp)
-	if err != nil {
-		return nil, ErrInternal
-	}
-
 	// upload to minio
-	_, err = s.MinIO.PutObject(ctx, os.Getenv("MINIO_BUCKET"), fileCreated.ID, file, fileSize, minio.PutObjectOptions{})
+	_, err = s.MinIO.PutObject(ctx, os.Getenv("MINIO_BUCKET"), fileCreated.ID, file, fileCreateParams.FileSize, minio.PutObjectOptions{})
 	if err != nil {
 		return nil, ErrInternal
 	}
 
-	return responseBody, nil
+	return json.Marshal(FileUploadResponse{
+		Data: fileCreated,
+	})
 }
 
-func (s *Config) HandleFileDelete(ctx context.Context, r *http.Request) ([]byte, error) {
+func (s *Config) FileDelete(ctx context.Context, r *http.Request) ([]byte, error) {
 	_, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
 		return nil, ErrUnauthorized
 	}
 
-	id := r.PathValue("id")
-
-	err := s.DB.FileSoftDelete(ctx, id)
+	err := s.DB.FileSoftDelete(ctx, r.PathValue("id"))
 	if err != nil {
 		return nil, ErrInternal
 	}
@@ -199,7 +198,7 @@ func (s *Config) HandleFileDelete(ctx context.Context, r *http.Request) ([]byte,
 	return nil, nil
 }
 
-func (s *Config) HandleFileDownload(w http.ResponseWriter, r *http.Request) {
+func (s *Config) FileDownload(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
@@ -241,66 +240,61 @@ func (s *Config) HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (s *Config) HandleFilePatch(ctx context.Context, r *http.Request) ([]byte, error) {
+func (s *Config) FilePatch(ctx context.Context, r *http.Request) ([]byte, error) {
 	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
 		return nil, ErrUnauthorized
 	}
 
-	id := r.PathValue("id")
-
 	var file db.File
-
-	// parse json body
 	err := json.NewDecoder(r.Body).Decode(&file)
 	if err != nil {
-		slog.Error(err.Error())
 		return nil, ErrBadRequest
 	}
 
-	slog.Info("the file", "file", file)
-
-	file, err = s.DB.FileUpdateName(ctx, db.FileUpdateNameParams{
-		ID:             id,
+	fileUpdateNameParams := db.FileUpdateNameParams{
+		ID:             r.PathValue("id"),
 		OrganisationID: user.OrganisationID,
 		Name:           file.Name,
-	})
+	}
+
+	file, err = s.DB.FileUpdateName(ctx, fileUpdateNameParams)
 	if err != nil {
-		slog.Error(err.Error())
 		return nil, ErrInternal
 	}
 
 	return json.Marshal(file)
 }
 
-func (s *Config) HandleFilePreview(ctx context.Context, r *http.Request) ([]byte, error) {
+type FilePreviewResponse struct {
+	URL string `json:"url"`
+}
+
+func (s *Config) FilePreview(ctx context.Context, r *http.Request) ([]byte, error) {
 	user, ok := middleware.GetUser(ctx, s.DB)
 	if !ok {
 		return nil, ErrUnauthorized
 	}
+
 	id := r.PathValue("id")
 
-	// Get file from db
-	file, err := s.DB.FileFindByID(ctx, db.FileFindByIDParams{
+	fileFindParams := db.FileFindByIDParams{
 		ID:             id,
 		OrganisationID: user.OrganisationID,
-	})
+	}
+
+	file, err := s.DB.FileFindByID(ctx, fileFindParams)
 	if err != nil {
-		slog.Error(err.Error())
 		return nil, ErrInternal
 	}
 
 	// Get preview url from minio
 	presignedURL, err := s.MinIO.PresignedGetObject(ctx, os.Getenv("MINIO_BUCKET"), file.ID, time.Second*60, nil)
 	if err != nil {
-		slog.Error(err.Error())
 		return nil, ErrInternal
 	}
 
-	res := struct {
-		URL string `json:"url"`
-	}{}
-	res.URL = presignedURL.String()
-
-	return json.Marshal(res)
+	return json.Marshal(FilePreviewResponse{
+		URL: presignedURL.String(),
+	})
 }

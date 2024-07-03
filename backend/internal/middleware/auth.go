@@ -11,14 +11,15 @@ const authKey = "auth"
 
 func Authentication(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// read request header Authorization
+		ctx := r.Context()
+
+		// Check if the request has an Authorization header
 		authHeader := r.Header.Get("Authorization")
 
-		// write auth header to ctx
-		ctx := r.Context()
+		// Write auth header to request context
 		ctx = context.WithValue(ctx, authKey, authHeader)
 
-		// pass request to next handler
+		// Pass request to next handler
 		handler.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

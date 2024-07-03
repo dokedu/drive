@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"example/internal/services/mail"
 	"net/http"
@@ -34,6 +35,10 @@ func NewServer(cfg Config) *Config {
 	return &Config{DB: cfg.DB, MinIO: cfg.MinIO, Mailer: cfg.Mailer}
 }
 
-func (s *Config) HandleRootRoute(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte("Hi :)"))
+func (s *Config) RootRoute(ctx context.Context, r *http.Request) ([]byte, error) {
+	return []byte("hey, what's that over there?!"), nil
+}
+
+func (s *Config) Healthz(ctx context.Context, r *http.Request) ([]byte, error) {
+	return []byte("OK"), nil
 }
